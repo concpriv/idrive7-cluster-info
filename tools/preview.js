@@ -8,6 +8,8 @@
  *                         [--black] [--speed 62] [--rpm 3200] [--gear 4] [--stage D] [--mode S] [--oil 96] [--coolant 90]
  *                         [--mcar] [--out preview.png]
  * --mcar: Settings > Cluster M car, with the M KOMBI's two dark boxes drawn over the layout as on the car
+ * --boxes: the M KOMBI's two dark boxes drawn over a layout NOT moved round them (Cluster M car off: what an
+ *          M car shows with the standard setting, or with a build before the setting)
  */
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +32,7 @@ function args(argv) {
         if (k === 'kmh') a.kmh = true;
         else if (k === 'black') a.black = true;
         else if (k === 'mcar') a.mcar = true;
+        else if (k === 'boxes') a.boxes = true;
         else if (k === 'engine') a.engine = true;
         else a[k] = isNaN(Number(argv[i + 1])) ? argv[++i] : Number(argv[++i]);
     }
@@ -130,7 +133,7 @@ if (require.main === module) {
     const scene = s.scene();
     s.stop();
     scene.time = a.time || 0;
-    render(scene, a.out, a.centre === 'map', a.mcar ? require('../apps/cluster_layouts/layout_common').M_BOXES : []).then((errors) => {
+    render(scene, a.out, a.centre === 'map', (a.mcar || a.boxes) ? require('../apps/cluster_layouts/layout_common').M_BOXES : []).then((errors) => {
         if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
         console.log('wrote ' + path.resolve(a.out) + ' (' + scene.quads.length + ' layers)');
         process.exit(0);
