@@ -83,6 +83,38 @@ function modeOf(v, ice) {
 }
 
 /**
+ * The M Drive profile a value of MDrive.statusMSystem names: 'M1', 'M2' or null. NOT VERIFIED on a car: the
+ * signal's layout is not in any catalogue these apps have, so only what the car itself names counts:
+ *   - an enum string naming M1 or M2 (M1, M_1, M_DRIVE_1, MODUS_M2, ... as a whole word: never M_MINUS_...),
+ *     unless it also says it is off / not / invalid;
+ *   - a field named for M1 or M2 (statusM1, mDrive2Active, ...) whose value says it is on: true, 1 in a
+ *     status-like field, or a string with ACTIVE / ON / AKTIV / SELECTED (not INACTIVE / NOT / OFF).
+ * Numbers are never mapped to a profile by themselves. Two profiles at once, or none: null. Every distinct raw
+ * value goes to the log (data.js fes), so the real layout can be read from a car's log.
+ */
+const PROFILE_WORD = /(^|_)M_?(?:DRIVE_?|MODUS_?|MODE_?|SETUP_?)?([12])(_|$)/;
+const NOT_ON = /INACTIVE|NOT|OFF|INVALID|UNGUELTIG|UNAVAILABLE|INITIALI|NONE|AUS$/;
+/** A field name as words: statusM2Active -> STATUS_M_2_ACTIVE. */
+const keyWords = (k) => norm(String(k).replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Za-z])([0-9])/g, '$1_$2'));
+function mProfileOf(v) {
+    const found = new Set();
+    leaves(v).forEach((l) => {
+        if (typeof l.v === 'string') {
+            const s = norm(l.v), m = PROFILE_WORD.exec(s);
+            if (m && !NOT_ON.test(s)) found.add('M' + m[2]);
+            if (/^(ACTIVE|ON|AKTIV|SELECTED|ENABLED)$/.test(s) || (/ACTIVE|AKTIV|SELECTED/.test(s) && !NOT_ON.test(s))) {
+                const k = PROFILE_WORD.exec(keyWords(l.key));
+                if (k) found.add('M' + k[2]);
+            }
+        } else if (l.v === true || (l.v === 1 && /status|active|state|aktiv|selected/i.test(l.key))) {
+            const k = PROFILE_WORD.exec(keyWords(l.key));
+            if (k) found.add('M' + k[2]);
+        }
+    });
+    return found.size === 1 ? Array.from(found)[0] : null;
+}
+
+/**
  * The ranges in a value of KombiIF.statusRangeTankStatus, by field name (they differ by car): range /
  * Reichweite with electric (elec, ev, hv, bev, batt) -> carErange, total -> carTrange, else carFrange; a fuel
  * level -> fuelLevel. Kilometres; 0xFFFE and up are invalid. Returns { name: number }.
@@ -154,9 +186,6 @@ function startData(ctx, opts) {
     const watch = (iface, handlers, what, o) => ctx.signals.watch(iface, '1', handlers, log, o)
         .then((s) => { status[what] = s.error ? 'error: ' + s.error : 'subscribed'; });
 
-    watch('de.bmw.infotainment.misc.MDrive', {
-        dataDisplayGearbox: (v) => { const raw = v && typeof v === 'object' ? (v.dataDisplayGearbox !== undefined ? v.dataDisplayGearbox : Object.keys(v).map((k) => v[k])[0]) : v; x.mode = PROGRAMS[raw] || null; },
-    }, 'drive programme');
     // the driving experience switch and, on a plug-in hybrid, the eDrive mode
     // (each signal's raw value is kept for the Signals screen; only its first 20 distinct values go to the log,
     // since the boost pressure in it changes all the time while driving)
@@ -176,6 +205,17 @@ function startData(ctx, opts) {
         const fromHmi = /HMI/.test(name);
         if (m && (fromHmi || x.driveModeFrom !== 'statusFESVehicleDynamicSwitchHMI' || Date.now() - (x.at.driveMode || 0) > 60000)) { x.driveMode = m; x.at.driveMode = Date.now(); x.driveModeFrom = name; }
     };
+    watch('de.bmw.infotainment.misc.MDrive', {
+        // the gearbox programme (S / M on the selector): the gear readout's letter, never the drive mode
+        dataDisplayGearbox: (v) => { const raw = v && typeof v === 'object' ? (v.dataDisplayGearbox !== undefined ? v.dataDisplayGearbox : Object.keys(v).map((k) => v[k])[0]) : v; x.mode = PROGRAMS[raw] || null; },
+        // the M Drive system: M1 / M2 when the car names one (mProfileOf); every raw value to the log and the
+        // Signals screen
+        statusMSystem: (v) => {
+            fes('statusMSystem')(v);
+            const p = mProfileOf(v);
+            if (p !== x.mProfile) { log.info('M Drive profile: ' + (p || 'none named') + ' (statusMSystem)'); x.mProfile = p; x.at.mProfile = Date.now(); fresh_(); }
+        },
+    }, 'drive programme');
     watch('de.bmw.infotainment.drivingexcitement.FES', {
         statusFESVehicleDynamicSwitchHMI: fes('statusFESVehicleDynamicSwitchHMI'),
         // the sport display's boost over atmosphere, boost without diagnostics: hundredths of a bar
@@ -369,7 +409,7 @@ function startData(ctx, opts) {
             // ranges: an app that shares them first (eDrive Live), else the car's own signal
             // the battery: eDrive Live's when it shares, else this app's own reads of the battery unit
             const o = Object.assign({}, d, { mode: x.mode, soc: isNum(p.soc) ? p.soc : fresh('hvSoc', 30000) ? x.hvSoc : undefined,
-                kw: isNum(p.kw) ? p.kw : fresh('hvKw', 2000) ? x.hvKw : undefined, driveMode: x.driveMode,
+                kw: isNum(p.kw) ? p.kw : fresh('hvKw', 2000) ? x.hvKw : undefined, driveMode: x.driveMode, mProfile: x.mProfile || null,
                 erange: isNum(p.erange) ? p.erange : fresh('carErange', 120000) ? x.carErange : undefined,
                 frange: isNum(p.frange) ? p.frange : fresh('carFrange', 120000) ? x.carFrange : undefined,
                 trange: fresh('carTrange', 120000) ? x.carTrange : undefined, fuelLevel: fresh('fuelLevel', 120000) ? x.fuelLevel : undefined });
@@ -418,4 +458,4 @@ function demo(d) {
     };
 }
 
-module.exports = { startData, DME_KEYS, entries, modeOf, rangesOf, FES_MODES };
+module.exports = { startData, DME_KEYS, entries, modeOf, mProfileOf, rangesOf, FES_MODES };

@@ -35,12 +35,13 @@ function selectorLit(d) {
     const g = gearText(d);
     return g === '-' ? '' : g === 'P' || g === 'R' || g === 'N' ? g : 'D';
 }
-/** The drive mode line: the mode as the car names it (data.js FES_MODES), else S / M from the selector, else the
- * colours' name. */
-const modeText = (d, t) => {
+/** The drive mode line, only as the car names it: the M Drive profile (M1 / M2, data.js mProfileOf), else the
+ * driving mode (data.js FES_MODES), else nothing. Never the colours' name (a palette's mode word is not the
+ * car's state) and never the gearbox's S / M programme (that is the gear readout's letter: S3, M3). */
+const modeText = (d) => {
+    if (d && d.mProfile) return d.mProfile;
     if (d && d.driveMode) return d.driveMode;
-    if (d && (d.mode === 'S' || d.mode === 'M')) return d.mode === 'M' ? 'MANUAL' : 'SPORT';
-    return t.mode;
+    return '';
 };
 /* the local time (clock.js: the unit's apps run on UTC; the Time zone setting says where the car is) */
 const clock = () => require('./clock').hm();

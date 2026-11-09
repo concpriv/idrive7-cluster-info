@@ -10,12 +10,12 @@ function rgb(hex) {
 }
 const LOOKS = ['comfort', 'sport', 'efficient'];
 /** The look now: the setting, or with Auto the selector's programme (S or M: sport). */
-/** Auto colours: sport in a sport mode or with the selector in S / M, efficient in ECO PRO or driving on
+/** Auto colours: sport in an M Drive profile (M1 / M2), a sport mode or with the selector in S / M, efficient in ECO PRO or driving on
  * electricity alone, comfort otherwise. */
 function lookNow(setting, d) {
     if (LOOKS.indexOf(setting) >= 0) return setting;
     if (!d) return 'comfort';
-    if (/SPORT|XTRABOOST/.test(d.driveMode || '') || d.mode === 'S' || d.mode === 'M') return 'sport';
+    if (d.mProfile || /SPORT|XTRABOOST/.test(d.driveMode || '') || d.mode === 'S' || d.mode === 'M') return 'sport';
     if (/ECO|ELECTRIC/.test(d.driveMode || '')) return 'efficient';
     return 'comfort';
 }
