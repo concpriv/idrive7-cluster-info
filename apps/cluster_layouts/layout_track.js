@@ -47,10 +47,12 @@ function track(o, d) {
 const zeroText = (o) => (d) => { track(o, d); return run.t0 ? ((Date.now() - run.t0) / 1000).toFixed(1) + ' s' : run.last !== null ? run.last.toFixed(1) + ' s' : '--'; };
 const bestText = (o) => (d) => { track(o, d); return run.best !== null ? 'BEST ' + run.best.toFixed(1) + ' s' : 'FROM A STOP'; };
 const zeroLabel = (o) => (o.speedUnit === 'kmh' ? '0-100 KM/H' : '0-60 MPH');
+/* the peak's number alone, its unit in the tile's label (a unit beside the big number was cut at the tile's edge) */
+const peakLabel = (o) => (C.engineFocus(o) ? 'PEAK BOOST ' + C.boostUnitText(o).toUpperCase() : 'PEAK POWER KW');
 const peakText = (o) => (d) => {
     track(o, d);
-    if (C.engineFocus(o)) return run.peakBoost === null ? '--' : C.boostNum(o, run.peakBoost) + ' ' + C.boostUnitText(o);
-    return run.peakKw === null ? '--' : Math.round(run.peakKw) + ' kW';
+    if (C.engineFocus(o)) return run.peakBoost === null ? '--' : C.boostNum(o, run.peakBoost);
+    return run.peakKw === null ? '--' : String(Math.round(run.peakKw));
 };
 
 /* ---------- pieces ---------- */
@@ -87,13 +89,13 @@ const gearC = (t, d) => ({ color: [C.gearText(d) === 'R' ? t.red : t.text, 1], g
 const powerC = (o) => (t, d) => (C.engineFocus(o) ? white(t) : { color: [C.isNum(d.kw) && d.kw < -0.3 ? t.regen : t.ev, 1], glow: [t.ev, 0.15] });
 /* the tiles' numbers alone (their units in the labels: a unit beside a big number didn't fit a tile) */
 const boostNum = (o) => (d) => {
-    if (C.engineFocus(o)) return C.timingText(d);
+    if (C.engineFocus(o)) return C.timingFit(d);
     if (d.engineOn === false) return 'OFF';
     if (!C.isNum(d.boostActual)) return '--';
-    return C.boostNum(o, d.boostActual);
+    return C.boostFit(o, d.boostActual);
 };
 const powerNum = (o) => (d) => {
-    if (C.engineFocus(o)) return C.torqueNum(o, d.torque);
+    if (C.engineFocus(o)) return C.torqueFit(o, d.torque);
     return C.isNum(d.kw) ? (Math.abs(d.kw) < 10 ? d.kw.toFixed(1) : String(Math.round(d.kw))) : '--';
 };
 
@@ -141,7 +143,7 @@ module.exports = {
                     C.text('speedUnit', 330, 356, 210, 26, C.speedUnit(o), lbl),
                 ],
                 tile('zero', 60, 480, 230, 120, zeroLabel(o), zeroText(o), acc),
-                tile('peak', 310, 480, 230, 120, engine ? 'PEAK BOOST' : 'PEAK POWER', peakText(o)),
+                tile('peak', 310, 480, 230, 120, peakLabel(o), peakText(o)),
                 tile('oil', 1120, 200, 136, 110, 'OIL', (d) => C.tempText(o, d.oil)),
                 tile('coolant', 1268, 200, 136, 110, 'COOLANT', (d) => C.tempText(o, d.coolant)),
                 tile('boost', 1120, 470, 136, 110, boostLbl, boostNum(o)),
@@ -170,7 +172,7 @@ module.exports = {
                 ],
                 tile('zero', 1400, 262, 220, 200, zeroLabel(o), zeroText(o), acc, 96),
                 [C.text('zeroBest', 1414, 418, 192, 24, bestText(o), lbl, { align: 0, tracking: 0.06 })],
-                tile('peak', 1640, 262, 220, 200, engine ? 'PEAK BOOST' : 'PEAK POWER', peakText(o), white, 96),
+                tile('peak', 1640, 262, 220, 200, peakLabel(o), peakText(o), white, 96),
                 [C.text('peakLbl2', 1654, 418, 192, 24, 'THIS DRIVE', lbl, { align: 0, tracking: 0.06 })],
                 tile('oil', X0, 262, 164, 135, 'OIL', (d) => C.tempText(o, d.oil)),
                 tile('coolant', X0, 417, 164, 135, 'COOLANT', (d) => C.tempText(o, d.coolant)),
@@ -193,7 +195,7 @@ module.exports = {
             ],
             tile('zero', 60, 420, 220, 200, zeroLabel(o), zeroText(o), acc, 96),
             [C.text('zeroBest', 74, 576, 192, 24, bestText(o), lbl, { align: 0, tracking: 0.06 })],
-            tile('peak', 300, 420, 220, 200, engine ? 'PEAK BOOST' : 'PEAK POWER', peakText(o), white, 96),
+            tile('peak', 300, 420, 220, 200, peakLabel(o), peakText(o), white, 96),
             [C.text('peakLbl2', 314, 576, 192, 24, 'THIS DRIVE', lbl, { align: 0, tracking: 0.06 })],
             tile('oil', X0, 262, 164, 135, 'OIL', (d) => C.tempText(o, d.oil)),
             tile('coolant', X0, 417, 164, 135, 'COOLANT', (d) => C.tempText(o, d.coolant)),

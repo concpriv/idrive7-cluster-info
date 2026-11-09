@@ -115,11 +115,19 @@ function slimTile(o, id, x, y, w, h) {
             { mark: (d) => (r.hot === null ? 2 : (r.hot - r.lo) / (r.hi - r.lo)) }),
     ];
 }
-/** A compact reading for the strips: icon, value with its unit, title under it. */
-function compact(o, id, x, y, w, up) {
+/** A compact reading for the strips: icon, value with its unit, title under it. line: all on one line (icon,
+ * title, then its value), for the row under the map above the KOMBI's own strip, too low for two lines. */
+function compact(o, id, x, y, w, up, line) {
     const r = READ[id], k = 'c_' + id;
     const val = (d) => { const s = readText(o, r, d); return s === '--' ? s : s + (r.boost || r.rail ? '' : '°'); };
     const col = (t, d) => ({ color: [hot(r, d) ? t.warm : t.text, 1], glow: [t.glow, 0.05] });
+    if (line) {
+        return [
+            icon(k + 'I', x, y + 6, 22, r.icon, (t, d) => (hot(r, d) ? t.warm : t.glow)),
+            C.text(k + 'L', x + 30, y + 9, 104, 16, r.title + (r.boost ? ' ' + C.boostUnitText(o).toUpperCase() : ''), lbl, { align: 0, tracking: 0.08 }),
+            C.text(k + 'V', x + 138, y, w - 150, 34, val, col, { align: 0, chars: 6 }),
+        ];
+    }
     // up: the label above the value (a row that must end above the warning lights)
     if (up) {
         return [
@@ -182,6 +190,9 @@ module.exports = {
 
         /* right: the gear above the dark box, charge and ranges below it */
         const RX = 1520, RW = 350;
+        // the side columns reach down to the KOMBI's own strip (map or stock centre, Bottom strip: the car's): the
+        // fuel bar and the xDrive split each get a line of their own above it (layout_common.STRIP_Y)
+        const tight = C.strip(o) && (map || stock);
         const strip = C.strip(o) && !map && !stock;
         if (strip) list.push(
             // the car's own bottom strip: no dark box, and the strip shows the ranges (its fuel and charge
@@ -201,10 +212,10 @@ module.exports = {
             label('erangeL', RX + 180, 460, 170, C.focus.rangeLabel(o), { align: 1 }),
             C.text('erange', RX + 110, 478, 240, 58, C.focus.range(o), engine ? txt : evTxt, { align: 1, chars: 8 }),
             bar('socBar', RX, 540, RW, 12, C.focus.bar(o), barC(engine ? 'fill1' : 'ev'), { segments: 20 }),
-            label('fuelL', RX, 566, 100, 'FUEL'),
+            label('fuelL', RX, tight ? 568 : 566, 100, 'FUEL'),
             C.text('frange', RX + 90, 556, RW - 90, 52, (d) => C.distText(o, d.frange), txt, { align: 1, chars: 7 }),
             // the tank's fill, red in its last eighth
-            bar('fuelBar', RX, 612, RW, 10, (d) => (isNum(d.fuelPct) ? d.fuelPct / 100 : 0), (t, d) => barC(isNum(d.fuelPct) && d.fuelPct < 12.5 ? 'red' : 'fill1')(t), { segments: 8 }),
+            bar('fuelBar', RX, tight ? 592 : 612, RW, 10, (d) => (isNum(d.fuelPct) ? d.fuelPct / 100 : 0), (t, d) => barC(isNum(d.fuelPct) && d.fuelPct < 12.5 ? 'red' : 'fill1')(t), { segments: 8 }),
         );
 
         /* the middle: six tiles; with the map, a strip under it; with the stock centre, two columns beside it */
@@ -219,7 +230,9 @@ module.exports = {
                 list.push(...(slim.indexOf(id) >= 0 ? slimTile(o, id, tx, ty, Math.round(cw), 66) : tile(o, id, tx, ty, Math.round(cw), Math.round(ch))));
             });
         } else if (map) {
-            ['oil', 'coolant', 'gearbox', engine ? 'boost' : 'batt'].forEach((id, i) => list.push(...compact(o, id, 450 + i * 260, 602, 230, true)));
+            // above the KOMBI's own strip (Bottom strip: the car's, layout_common.STRIP_Y) the row is one line high
+            const line = C.strip(o);
+            ['oil', 'coolant', 'gearbox', engine ? 'boost' : 'batt'].forEach((id, i) => list.push(...compact(o, id, 450 + i * 260, line ? 606 : 602, 230, true, line)));
         } else {
             ['oil', 'coolant', 'gearbox'].forEach((id, i) => list.push(...compact(o, id, 450, 214 + i * 110, 340)));
             ['iat', engine ? 'rail' : 'batt', 'boost'].forEach((id, i) => list.push(...compact(o, id, 1120, 214 + i * 110, 280)));
@@ -231,8 +244,8 @@ module.exports = {
             C.text('outside', 240, map ? 606 : 552, 160, 44, (d) => C.outsideText(o, d.outside), txt, { align: 0, chars: 6 }),
         );
         if (!strip) list.push(
-            label('splitL', RX, 634, 100, 'XDRIVE'),
-            C.text('split', RX + 100, 628, RW - 100, 32, C.splitText, txt, { align: 1, chars: 12 }),
+            label('splitL', RX, tight ? 620 : 634, 100, 'XDRIVE'),
+            C.text('split', RX + 100, tight ? 610 : 628, RW - 100, tight ? 34 : 32, C.splitText, txt, { align: 1, chars: 12 }),
         );
         return list;
     },

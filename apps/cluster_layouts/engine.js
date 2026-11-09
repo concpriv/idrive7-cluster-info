@@ -198,7 +198,7 @@ function startCluster(opts) {
                 }
             }
             if (s.kind === 'text') {
-                const txt = typeof s.text === 'function' ? String(s.text(d, t)) : String(s.text);
+                const txt = typeof s.text === 'function' ? String(s.text(d, t, s)) : String(s.text);   // s: the piece (its box, for a text that fits itself)
                 if (force || txt !== p.text) {
                     p.text = txt;
                     const ln = font.line(txt, s.w / s.h, s.align, s.tracking, fam());

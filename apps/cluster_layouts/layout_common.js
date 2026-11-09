@@ -167,6 +167,12 @@ const boostNum = (o, bar0) => {
     return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s;
 };
 const boostUnitText = (o) => ({ psi: 'psi', bar: 'bar', kpa: 'kPa' })[pressUnit(o)];
+/** For a small box: boostNum, else one decimal fewer (bar to a tenth, psi whole). */
+const boostFit = (o, bar0) => {
+    if (!isNum(bar0)) return '--';
+    const u = pressUnit(o), v = boostIn(o, bar0), clean = (s) => (/^-0(\.0+)?$/.test(s) ? s.slice(1) : s);
+    return u === 'kpa' ? clean(v.toFixed(0)) : [clean(v.toFixed(u === 'bar' ? 2 : 1)), clean(v.toFixed(u === 'bar' ? 1 : 0))];
+};
 const boostText = (o, d) => (d.engineOn === false ? 'OFF' : isNum(d.boostActual) ? boostNum(o, d.boostActual) + ' ' + boostUnitText(o) : '--');
 /** Engine torque (Nm) in Settings > Torque unit: Nm, or kgm (to a tenth). */
 const torqueKgm = (o) => !!o && o.torqueUnit === 'kgm';
@@ -174,6 +180,10 @@ const torqueNum = (o, nm) => (!isNum(nm) ? '--' : torqueKgm(o) ? (nm / 9.80665).
 const torqueUnit = (o) => (torqueKgm(o) ? 'kgm' : 'Nm');
 const torqueText = (o) => (d) => (isNum(d.torque) ? torqueNum(o, d.torque) + ' ' + torqueUnit(o) : '--');
 const timingText = (d) => (isNum(d.timing) ? d.timing.toFixed(1) + '°' : '--');
+/** For a small box: the timing to a tenth, else whole degrees. */
+const timingFit = (d) => (isNum(d.timing) ? [d.timing.toFixed(1) + '°', Math.round(d.timing) + '°'] : '--');
+/** For a small box: torque as torqueNum, else (kgm) whole. */
+const torqueFit = (o, nm) => (!isNum(nm) ? '--' : torqueKgm(o) ? [(nm / 9.80665).toFixed(1), String(Math.round(nm / 9.80665))] : String(Math.round(nm)));
 /** Boost (bar over atmosphere) 0..1.6 as 0..1. */
 const boostFrac = (d) => (d.engineOn === false || !isNum(d.boostActual) ? 0 : Math.max(0, Math.min(1, d.boostActual / 1.6)));
 const focus = {
@@ -218,11 +228,44 @@ function bar(key, x, y, w, h, value, colors, segments) {
 }
 
 /** A text piece. */
-const text = (key, x, y, w, h, txt, colors, extra) => Object.assign({ key, kind: 'text', x, y, w, h, text: txt, colors, align: 0.5 }, extra || {});
+/*
+ * Text that offers shorter versions of itself: a text function may return a list, longest first, and the piece
+ * shows the first that fits its box at no closer than FIT_SQUEEZE (font.js sets a long line's glyphs closer, to
+ * 85% at most, then cuts it at the box's edge; tools/textfit.js measures the same way), else the last. The engine
+ * passes the piece (s) so the box is the one drawn, after any change to it (layouts.js). The drive mode line
+ * always offers its shorter forms (modeVariants).
+ */
+const FIT_SQUEEZE = 0.9;
+function fitsBox(str, w, h, tracking) {
+    const font = require('./font'), a = font.atlas('bold');
+    const need = Array.from(String(str)).slice(0, 32).reduce((x, ch) => {
+        const c = font.codeOf(ch);
+        return x + (c < 0 ? 0.3 : ch === ' ' ? Math.max(a.adv[c], 0.32) : a.adv[c]);
+    }, 0);
+    return need * FIT_SQUEEZE <= w / h + 1e-6;
+}
+const pickFitting = (v, s) => {
+    if (!Array.isArray(v)) return v;
+    const list = v.filter((x, i) => x !== undefined && x !== null && v.indexOf(x) === i);
+    return list.find((x) => fitsBox(x, s.w, s.h, s.tracking)) || list[list.length - 1] || '';
+};
+/** The drive mode line's forms, longest first: as the car names it, INDIVIDUAL shortened, XTRABOOST shortened,
+ * then the mode word alone. */
+const modeVariants = (d) => {
+    const s = modeText(d);
+    if (!s) return '';
+    const ind = s.replace(' INDIVIDUAL', ' INDIV.');
+    return [s, ind, ind.replace(' XTRABOOST', ' XB'), s.replace(' XTRABOOST', '').replace(' INDIVIDUAL', '')];
+};
+const text = (key, x, y, w, h, txt, colors, extra) => {
+    const fn = txt === modeText ? modeVariants : txt;
+    const t = typeof fn === 'function' ? (d, th, s) => pickFitting(fn(d, th), s || { w, h, tracking: (extra || {}).tracking }) : fn;
+    return Object.assign({ key, kind: 'text', x, y, w, h, text: t, colors, align: 0.5 }, extra || {});
+};
 /** A flat rectangle. */
 const flat = (key, x, y, w, h, colour) => ({ key, kind: 'flat', x, y, w, h, colors: (t, d) => ({ color: [typeof colour === 'function' ? colour(t, d) : t[colour], 1] }) });
 
 module.exports = {
     isNum, speedIn, speedUnit, tempIn, tempText, speedText, speedScale, rpmScale, tempFrac, gearText, selectorLit, clock, modeText, text, flat,
-    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, PSI_PER_BAR, pressUnit, boostIn, boostNum, boostUnitText, boostText, torqueText, torqueNum, torqueUnit, timingText, boostFrac,
+    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, PSI_PER_BAR, pressUnit, boostIn, boostNum, boostFit, boostUnitText, boostText, torqueText, torqueNum, torqueUnit, timingText, timingFit, torqueFit, modeVariants, fitsBox, FIT_SQUEEZE, boostFrac,
 };
