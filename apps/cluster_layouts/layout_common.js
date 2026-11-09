@@ -149,9 +149,25 @@ const splitText = (d) => (isNum(d.splitRear) ? 'F ' + Math.round(100 - d.splitRe
  * -> boost against its target. Each helper takes o and gives the reading for the choice.
  */
 const engineFocus = (o) => !!o && (o.vehicle === 'ice' || o.focus === 'engine');
-const boostIn = (o, bar0) => (o.speedUnit === 'kmh' ? bar0 : bar0 * 14.5038);
-const boostText = (o, d) => (d.engineOn === false ? 'OFF' : isNum(d.boostActual)
-    ? (o.speedUnit === 'kmh' ? boostIn(o, d.boostActual).toFixed(2) + ' bar' : boostIn(o, d.boostActual).toFixed(1) + ' psi') : '--');
+/*
+ * Boost: gauge pressure, bar over atmosphere (data.js: the engine unit's absolute boost less its barometric
+ * pressure, OBD PID 0x33; or the sport display's boost, already over atmosphere). Settings > Boost unit: psi,
+ * bar or kPa; Auto: bar with km/h, psi with mph. 1 bar = 14.5037738 psi = 100 kPa.
+ */
+const PSI_PER_BAR = 14.5037738;
+const pressUnit = (o) => {
+    const u = o && o.pressUnit;
+    return u === 'psi' || u === 'bar' || u === 'kpa' ? u : o && o.speedUnit === 'kmh' ? 'bar' : 'psi';
+};
+const boostIn = (o, bar0) => { const u = pressUnit(o); return u === 'psi' ? bar0 * PSI_PER_BAR : u === 'kpa' ? bar0 * 100 : bar0; };
+/** The number alone: bar to a hundredth, psi to a tenth, kPa whole; '-0' never shown. */
+const boostNum = (o, bar0) => {
+    if (!isNum(bar0)) return '--';
+    const u = pressUnit(o), s = boostIn(o, bar0).toFixed(u === 'bar' ? 2 : u === 'psi' ? 1 : 0);
+    return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s;
+};
+const boostUnitText = (o) => ({ psi: 'psi', bar: 'bar', kpa: 'kPa' })[pressUnit(o)];
+const boostText = (o, d) => (d.engineOn === false ? 'OFF' : isNum(d.boostActual) ? boostNum(o, d.boostActual) + ' ' + boostUnitText(o) : '--');
 /** Engine torque (Nm) in Settings > Torque unit: Nm, or kgm (to a tenth). */
 const torqueKgm = (o) => !!o && o.torqueUnit === 'kgm';
 const torqueNum = (o, nm) => (!isNum(nm) ? '--' : torqueKgm(o) ? (nm / 9.80665).toFixed(1) : String(Math.round(nm)));
@@ -208,5 +224,5 @@ const flat = (key, x, y, w, h, colour) => ({ key, kind: 'flat', x, y, w, h, colo
 
 module.exports = {
     isNum, speedIn, speedUnit, tempIn, tempText, speedText, speedScale, rpmScale, tempFrac, gearText, selectorLit, clock, modeText, text, flat,
-    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, boostText, torqueText, torqueNum, torqueUnit, timingText, boostFrac,
+    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, PSI_PER_BAR, pressUnit, boostIn, boostNum, boostUnitText, boostText, torqueText, torqueNum, torqueUnit, timingText, boostFrac,
 };

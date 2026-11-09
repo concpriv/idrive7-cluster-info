@@ -417,6 +417,30 @@
       ]
     },
     {
+      "key": "pressUnit",
+      "label": "Boost unit",
+      "type": "choice",
+      "default": "auto",
+      "options": [
+        [
+          "auto",
+          "Auto (bar with km/h, psi with mph)"
+        ],
+        [
+          "psi",
+          "psi"
+        ],
+        [
+          "bar",
+          "bar"
+        ],
+        [
+          "kpa",
+          "kPa"
+        ]
+      ]
+    },
+    {
       "key": "redline",
       "label": "Red zone from",
       "type": "number",

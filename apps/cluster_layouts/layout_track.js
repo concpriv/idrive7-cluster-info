@@ -49,7 +49,7 @@ const bestText = (o) => (d) => { track(o, d); return run.best !== null ? 'BEST '
 const zeroLabel = (o) => (o.speedUnit === 'kmh' ? '0-100 KM/H' : '0-60 MPH');
 const peakText = (o) => (d) => {
     track(o, d);
-    if (C.engineFocus(o)) return run.peakBoost === null ? '--' : o.speedUnit === 'kmh' ? run.peakBoost.toFixed(2) + ' bar' : (run.peakBoost * 14.5038).toFixed(1) + ' psi';
+    if (C.engineFocus(o)) return run.peakBoost === null ? '--' : C.boostNum(o, run.peakBoost) + ' ' + C.boostUnitText(o);
     return run.peakKw === null ? '--' : Math.round(run.peakKw) + ' kW';
 };
 
@@ -90,7 +90,7 @@ const boostNum = (o) => (d) => {
     if (C.engineFocus(o)) return C.timingText(d);
     if (d.engineOn === false) return 'OFF';
     if (!C.isNum(d.boostActual)) return '--';
-    return o.speedUnit === 'kmh' ? d.boostActual.toFixed(2) : (d.boostActual * 14.5038).toFixed(1);
+    return C.boostNum(o, d.boostActual);
 };
 const powerNum = (o) => (d) => {
     if (C.engineFocus(o)) return C.torqueNum(o, d.torque);
@@ -105,7 +105,7 @@ module.exports = {
 
     pieces(o) {
         const engine = C.engineFocus(o);
-        const boostLbl = engine ? 'TIMING' : o.speedUnit === 'kmh' ? 'BOOST BAR' : 'BOOST PSI', powerLbl = engine ? 'TORQUE ' + C.torqueUnit(o).toUpperCase() : 'POWER KW';
+        const boostLbl = engine ? 'TIMING' : 'BOOST ' + C.boostUnitText(o).toUpperCase(), powerLbl = engine ? 'TORQUE ' + C.torqueUnit(o).toUpperCase() : 'POWER KW';
         const right = () => [
             ...C.reading('fuel', 1672, 292, 216, 44, (d) => C.distText(o, d.frange), 'FUEL RANGE', white, lbl),
             ...C.reading('elec', 1672, 400, 216, 44, C.focus.range(o), C.focus.rangeLabel(o), engine ? white : (t) => ({ color: [t.ev, 1], glow: [t.ev, 0.2] }), lbl),
