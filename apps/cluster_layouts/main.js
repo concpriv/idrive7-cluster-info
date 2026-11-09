@@ -52,7 +52,13 @@ mgu.run({
         const clockNow = () => { clock.setZone(settings.get('timeZone')); clock.setTwelve(settings.get('clock') !== '24'); };
         clockNow();
         settings.onChange((k) => { if (k === 'timeZone' || k === 'clock') clockNow(); });
-        const showing = () => settings.get('show') === 'on';
+        /* Settings > Bottom bar: the KOMBI seems to decide on its dark boxes when the panel comes up, not while it
+         * is up (a change made with the layout showing left the boxes; the same setting with the layout put up
+         * again had none: X4M, 2026-11-09). So a change takes the layout down for REMAP_MS, longer than the
+         * renderer keeps the slot after the last layer goes (panel_linger_ms, 3 s), and puts it up fresh. */
+        const REMAP_MS = 5000;
+        let downUntil = 0;
+        const showing = () => settings.get('show') === 'on' && Date.now() >= downUntil;
         // every reading (data.js, shared with Cluster Centre): the car's signals, the engine unit over UDS for
         // what a layout needs (layout.needs), eDrive Live's charge and power while shown
         const D = startData(ctx, { shown: showing });
@@ -64,7 +70,7 @@ mgu.run({
             boxClear: settings.get('boxClear') === 'on',
             cluster: settings.get('cluster') === 'm' ? 'm' : 'standard',   // an M car's KOMBI: its two boxes in the middle (layouts.js)
             boxBezel: settings.get('boxBezel') === 'on',   // (off: the box sits on the plain background)
-            bottomClear: settings.get('bottomClear') === 'clear',   // nothing below y 640, the KOMBI's bottom bar (layouts.js)
+            bottomClear: settings.get('bottomClear'),   // 'cover', 'clear' (nothing below y 640) or 'bar' (y 662): layouts.js
             vehicle: D.vehicle().vehicle,      // set, or found from the car (Auto)
         });
         /** Live: demo data on, or the car's signals answer (a parked car sends nothing new for minutes, so a
@@ -114,6 +120,10 @@ mgu.run({
             }
         }, 500);
         settings.onChange((k) => {
+            if (k === 'bottomClear' && settings.get('show') === 'on') {
+                downUntil = Date.now() + REMAP_MS;
+                log.info('bottom bar: ' + settings.get('bottomClear') + '; the layout down for ' + REMAP_MS / 1000 + ' s, then up fresh');
+            }
             if (k === 'look' || k === 'background') return cluster.recolour();
             if (k === 'layout') layout = byId(settings.get('layout'));
             if (['layout', 'centre', 'speedUnit', 'tempUnit', 'redline', 'rpmMax', 'boxClear', 'boxBezel', 'bottomClear', 'cluster', 'vehicle', 'tankLitres', 'batteryReads'].indexOf(k) >= 0) cluster.rebuild();

@@ -3,7 +3,7 @@
  * layouts.js - the layouts this app offers, by id. A layout is one file, layout_<id>.js, next to this one
  * (the build ships only top-level .js files); list it here and in app.json's "layout" setting (README.md).
  */
-const LAYOUTS = [require('./layout_analog_sport'), require('./layout_digital_round'), require('./layout_modern_wide'), require('./layout_digital_dash'), require('./layout_freedom'), require('./layout_retro'), require('./layout_track')];
+const LAYOUTS = [require('./layout_analog_sport'), require('./layout_digital_round'), require('./layout_modern_wide'), require('./layout_digital_dash'), require('./layout_freedom'), require('./layout_retro'), require('./layout_track'), require('./layout_box_test')];
 /* with Settings > Frame behind the gear box on: the bezel behind the KOMBI's gear bracket (layout_common.boxBezel),
  * just above the backgrounds. Off (the default, from the car: the frame read as a stray grey box) the box sits on
  * the layout's own black background and its black window disappears into it */
@@ -78,54 +78,67 @@ function mMoves(L, o, list) {
  * Settings > Bottom bar: keep clear. The KOMBI keeps a bar along the bottom of the panel for its own warning
  * lights, gear selector and outside temperature. Reported from a car (bimmerpost "Custom native iDrive 7 apps",
  * page 24, rasca1, 2026-11-08): with a layout's backdrop reaching below y 640 the KOMBI puts its dark boxes up,
- * and with the backdrop cut out there it doesn't. NOT VERIFIED with these layouts. With the setting on, nothing
- * of a layout reaches below BOTTOM:
- *   - a dial crossing it is scaled about its top centre so it ends at BOTTOM, with every piece on it (its
+ * and with the backdrop cut out there it doesn't. VERIFIED on an X4M (F98, 2026-11-09) at y 640: no boxes, once
+ * the layout is put up with the line already set (main.js puts it up fresh when the setting changes).
+ * Two lines (Settings > Bottom bar):
+ *   BOTTOM      640: the line the car was verified with;
+ *   BOTTOM_BAR  662: just above the bar's own text (its first text at y 666-673 on the X4M, measured from a
+ *               photo with the layout's tiles as reference points, within 2 px), so the stock dials' ends and
+ *               the speed-limit sign's top (y 639-659) are covered too. NOT VERIFIED: whether the KOMBI's boxes
+ *               stay away down to it (layout_box_test.js is for finding out).
+ * With a line set, nothing of a layout reaches below it:
+ *   - a dial crossing it is scaled about its top centre so it ends at the line, with every piece on it (its
  *     sub-dial, its labels: inside its rect and on no card of their own); a dial's shader works from its size,
  *     so it keeps its shape, and a band on it has its pixel geometry (u_geo) scaled with it;
- *   - any other piece taller than SMALL (a background, a card, a scale, an arc) is cut at BOTTOM: the shaders
+ *   - any other piece taller than SMALL (a background, a card, a scale, an arc) is cut at the line: the shaders
  *     work in pixels from the layer's top-left (shaders.js), so what is above the cut stays exactly where it was;
  *     one wholly below it is left out;
- *   - a small one (a text, an icon, a bar: up to SMALL high) moves up so it ends at BOTTOM.
+ *   - a small one (a text, an icon, a bar: up to SMALL high) moves up so it ends at the line.
  */
-const BOTTOM = 640, SMALL = 80;
+const BOTTOM = 640, BOTTOM_BAR = 662, SMALL = 80;
+/** The line for options o (o.bottomClear: true or 'clear' = BOTTOM, 'bar' = BOTTOM_BAR, a number), or null. */
+const bottomLine = (o) => {
+    const v = o && o.bottomClear;
+    return v === true || v === 'clear' ? BOTTOM : v === 'bar' ? BOTTOM_BAR : typeof v === 'number' && v > 0 && v < 720 ? v : null;
+};
 const isBackdrop = (p) => p.kind === 'bg' || p.kind === 'flat' || p.kind === 'panel' || /^bg/.test(p.key || '');
 const inside = (q, r) => q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h;
-function clearBottom(list) {
+function clearBottom(list, line) {
+    const B = line || BOTTOM;
     const out = list.map((p) => Object.assign({}, p));
     const done = new Set();
     // cards (backdrops smaller than half the panel): a piece on a card belongs to it, not to a dial over it
     const cards = out.filter((p) => isBackdrop(p) && !/^bg/.test(p.key || '') && p.kind !== 'bg' && p.w * p.h < 1920 * 720 / 2)
         .map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
     const onOtherCard = (q, r) => cards.some((c) => inside(q, c) && !inside(c, r));
-    // dials crossing BOTTOM, largest first, scaled with what is on them
-    out.filter((p) => p.kind === 'dial' && p.y < BOTTOM && p.y + p.h > BOTTOM)
+    // dials crossing the line, largest first, scaled with what is on them
+    out.filter((p) => p.kind === 'dial' && p.y < B && p.y + p.h > B)
         .sort((a, b) => b.w * b.h - a.w * a.h)
         .forEach((p) => {
             if (done.has(p)) return;
-            const r = { x: p.x, y: p.y, w: p.w, h: p.h }, f = (BOTTOM - r.y) / r.h, cx = r.x + r.w / 2;
+            const r = { x: p.x, y: p.y, w: p.w, h: p.h }, f = (B - r.y) / r.h, cx = r.x + r.w / 2;
             out.forEach((q) => {
                 if (done.has(q) || isBackdrop(q) || (q !== p && (!inside(q, r) || onOtherCard(q, r)))) return;
                 q.x = Math.round(cx + (q.x - cx) * f);
                 q.y = Math.round(r.y + (q.y - r.y) * f);
                 q.w = Math.max(1, Math.round(q.w * f));
-                q.h = Math.max(1, Math.min(Math.round(q.h * f), BOTTOM - q.y));
+                q.h = Math.max(1, Math.min(Math.round(q.h * f), B - q.y));
                 if (q.kind === 'band' && q.params && q.params.u_geo) {
                     q.params = Object.assign({}, q.params, { u_geo: q.params.u_geo.map((v) => v * f) });
                 }
                 done.add(q);
             });
         });
-    // anything else taller than SMALL crossing BOTTOM: cut there
+    // anything else taller than SMALL crossing the line: cut there
     out.forEach((p) => {
-        if (done.has(p) || p.y + p.h <= BOTTOM || p.h <= SMALL) return;
-        p.h = BOTTOM - p.y;
+        if (done.has(p) || p.y + p.h <= B || p.h <= SMALL) return;
+        p.h = B - p.y;
         done.add(p);
     });
     // small pieces still crossing or below it: moved up
     out.forEach((p) => {
-        if (done.has(p) || p.y + p.h <= BOTTOM) return;
-        p.y = BOTTOM - p.h;
+        if (done.has(p) || p.y + p.h <= B) return;
+        p.y = B - p.h;
         done.add(p);
     });
     return out.filter((p) => p.h > 0 && p.w > 0);
@@ -144,8 +157,9 @@ LAYOUTS.forEach((L) => {
             if (o.centre === 'map') { const r = b.x + b.w; b.x = MAP.x + MAP.w; b.w = r - b.x; }
             list.splice(i, 0, b);
         }
-        return o && o.bottomClear === true ? clearBottom(list) : list;
+        const line = bottomLine(o);
+        return line ? clearBottom(list, line) : list;
     };
 });
 const byId = (id) => LAYOUTS.find((l) => l.id === id) || LAYOUTS[0];
-module.exports = { LAYOUTS, byId, M_MOVES, M_ON_DIAL, BOTTOM, clearBottom };
+module.exports = { LAYOUTS, byId, M_MOVES, M_ON_DIAL, BOTTOM, BOTTOM_BAR, bottomLine, clearBottom };

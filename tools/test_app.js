@@ -82,6 +82,18 @@ const check = (name, fn) => { fn(); ok++; console.log('ok   ' + name); };
         const dial = eng()._pieces().find((p) => p.kind === 'dial');
         assert.strictEqual(dial.params.u_scale[0], 260);
     });
+    // Settings > Bottom bar: the KOMBI decides on its boxes when the panel comes up, so a change takes the
+    // layout down for longer than the renderer's 3 s linger, then up fresh (main.js REMAP_MS)
+    ctx.settings.set('bottomClear', 'clear');
+    await sleep(800);
+    check('bottom bar changed: the layout taken down (no layers: the renderer lets the slot go)', () => assert.strictEqual(effects().length, 0));
+    await sleep(3000);
+    check('still down after the renderer\'s 3 s linger', () => assert.strictEqual(effects().length, 0));
+    await sleep(1800);
+    check('up again after 5 s, nothing below y 640', () => {
+        assert(effects().length > 0 && effects().every((l) => l.opts.visible === true), effects().length + ' layers');
+        assert(effects().every((l) => l.opts.y + l.opts.h <= 640), 'a layer below 640');
+    });
     await sleep(200);
     check('the page draws', () => assert(pages > 0));
     check('warnings only for what this machine lacks (no catalog, no diagnostic link)', () => assert(warns.some((w) => /catalog not readable/.test(w)) && warns.every((w) => /catalog not readable|TASU/.test(w)), JSON.stringify(warns)));

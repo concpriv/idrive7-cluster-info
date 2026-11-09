@@ -57,6 +57,17 @@ LAYOUTS.forEach((L) => {
         assert.strictEqual(s.client.messages, 0, JSON.stringify(s.client.log.slice(0, 3)));
         s.stop();
     });
+    // a test card (layout_box_test.js) shows no readings by design: its own check instead
+    if (L.testCard) {
+        check(id + ': a test card: one fill over the panel and its label, nothing else', () => {
+            const s = makeScene({ layout: id, data: {} });
+            const ps = s.engine._pieces();
+            assert(ps.some((p) => p.kind === 'flat' && p.x === 0 && p.y === 0 && p.w === 1920 && p.h === 720), 'the fill');
+            assert(textsOf(s).some((x) => /^BOX TEST/.test(x)), JSON.stringify(textsOf(s)));
+            s.stop();
+        });
+        return;
+    }
     check(id + ': the readings reach the cluster (gear, digits, values)', () => {
         const s = makeScene({ layout: id, data: {} });
         drive(s, 2, () => ({ speed: 50 * 1.609344, rpm: 2500, stage: 'D', gear: 3, oil: 100, coolant: 90 }));

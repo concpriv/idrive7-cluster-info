@@ -2,7 +2,7 @@
   "id": "cluster_layouts",
   "title": "Cluster Layouts",
   "description": "Your own layout on the whole instrument cluster (round dials, gear, temperatures), drawn by the cluster itself",
-  "version": "0.13.102",
+  "version": "0.13.103",
   "startType": "autostart",
   "vendor": "custom",
   "loggingId": "OA9L",
@@ -209,6 +209,10 @@
         [
           "track",
           "Track"
+        ],
+        [
+          "box_test",
+          "Box test (one flat colour: shows anything the cluster draws over a layout)"
         ]
       ]
     },
@@ -280,7 +284,11 @@
         ],
         [
           "clear",
-          "Keep it clear: nothing below y 640 (test: may stop the dark boxes)"
+          "Keep it clear: nothing below y 640 (no dark boxes on the X4M)"
+        ],
+        [
+          "bar",
+          "Cover the dials' ends, keep the bar's text clear: down to y 662 (test)"
         ]
       ]
     },

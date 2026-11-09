@@ -10,7 +10,8 @@
  * --mcar: Settings > Cluster M car, with the M KOMBI's two dark boxes drawn over the layout as on the car
  * --boxes: the M KOMBI's two dark boxes drawn over a layout NOT moved round them (Cluster M car off: what an
  *          M car shows with the standard setting, or with a build before the setting)
- * --bottom: Settings > Bottom bar: keep clear (nothing below y 640). --celsius: temperatures in deg C
+ * --bottom: Settings > Bottom bar: keep clear (nothing below y 640); --bar: down to y 662, the bar's text clear.
+ * --celsius: temperatures in deg C
  */
 const fs = require('fs');
 const path = require('path');
@@ -35,6 +36,7 @@ function args(argv) {
         else if (k === 'mcar') a.mcar = true;
         else if (k === 'boxes') a.boxes = true;
         else if (k === 'bottom') a.bottom = true;
+        else if (k === 'bar') a.bar = true;
         else if (k === 'celsius') a.celsius = true;
         else if (k === 'engine') a.engine = true;
         else a[k] = isNaN(Number(argv[i + 1])) ? argv[++i] : Number(argv[++i]);
@@ -115,7 +117,7 @@ async function render(scene, out, mapWindow, over) {
 
 if (require.main === module) {
     const a = args(process.argv.slice(2));
-    const s = makeScene({ layout: a.layout, look: a.look, black: !!a.black, options: { centre: a.centre, speedUnit: a.kmh ? 'kmh' : 'mph', tempUnit: a.celsius ? 'c' : 'f', vehicle: a.engine ? 'ice' : 'phev', cluster: a.mcar ? 'm' : 'standard', bottomClear: !!a.bottom },
+    const s = makeScene({ layout: a.layout, look: a.look, black: !!a.black, options: { centre: a.centre, speedUnit: a.kmh ? 'kmh' : 'mph', tempUnit: a.celsius ? 'c' : 'f', vehicle: a.engine ? 'ice' : 'phev', cluster: a.mcar ? 'm' : 'standard', bottomClear: a.bar ? 'bar' : a.bottom ? 'clear' : 'cover' },
         data: { speed: a.speed * (a.kmh ? 1 : 1.609344), rpm: a.rpm, gear: a.gear, stage: a.stage, mode: a.mode, driveMode: a.drive, oil: a.oil, coolant: a.coolant, outside: a.outside, soc: a.soc, kw: a.kw, erange: a.erange, frange: a.frange,
             gearbox: a.gearbox, iat: a.iat, battTemp: a.batt, boostActual: a.boost, torque: 312, timing: 14.5, hpfp: 205, boostTarget: 0.9, splitRear: a.split, engineOn: a.rpm > 300, fuelPct: a.fuel, pdDrive: 62, pdClimate: 24, pdSeats: 14 } });
     // let the needles ease to their readings
