@@ -136,6 +136,25 @@ function cut(r, hole) {
 /** True when a point is inside the glass's slanted top corners (hidden). */
 const inCorner = (x, y) => y < 217 - 0.55 * Math.min(x, 1920 - x);
 
+/** The y a box spanning x0..x1 starts at to keep its top corners out of the slanted top corners (inCorner,
+ * which clearance.js checks), plus margin. */
+const belowCorners = (x0, x1, margin) => Math.ceil(Math.max(0, 217 - 0.55 * Math.min(x0, 1920 - x0), 217 - 0.55 * Math.min(x1, 1920 - x1)) + (margin || 0));
+/*
+ * Two equal dials either side of a centre (the map's area, MAP, or the stock cluster's middle, STOCK_MIDDLE),
+ * mirrored about the panel's centre line and sized from the usable areas, not from offsets: as wide as the
+ * narrower side column allows, as tall as the layout's bottom (STRIP_Y with the car's own strip, else the
+ * warning lights' top) allows with `head` pixels kept above them for a readout. For the car's own strip, where
+ * the KOMBI shows none of its boxes to keep clear of.
+ *   -> { size, cy, L, R (the centres' x), top (the dials' top), bottom }
+ */
+const STOCK_MIDDLE = { x: 566, y: 0, w: 538, h: 720 };
+function sideDials(o, centre, head) {
+    const margin = 10, colW = Math.min(centre.x, 1920 - (centre.x + centre.w));
+    const bottom = (strip(o) ? STRIP_Y : TELLTALES.y) - 6;
+    const size = Math.floor(Math.min(colW - 2 * margin, bottom - (head === undefined ? 236 : head)) / 2) * 2;
+    const L = Math.round(centre.x / 2), cy = bottom - size / 2;
+    return { size, cy, L, R: 1920 - L, top: bottom - size, bottom };
+}
 /** A distance in km as the speed unit wants it: '312 MI', '502 KM', or '--'. */
 const distText = (o, km) => (isNum(km) ? Math.round(o.speedUnit === 'kmh' ? km : km / KMH_PER_MPH) + (o.speedUnit === 'kmh' ? ' km' : ' mi') : '--');
 /** The electric range: '~31 MI' when it is the estimate from the charge (data.js), else as distText. */
@@ -267,5 +286,5 @@ const flat = (key, x, y, w, h, colour) => ({ key, kind: 'flat', x, y, w, h, colo
 
 module.exports = {
     isNum, speedIn, speedUnit, tempIn, tempText, speedText, speedScale, rpmScale, tempFrac, gearText, selectorLit, clock, modeText, text, flat,
-    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, PSI_PER_BAR, pressUnit, boostIn, boostNum, boostFit, boostUnitText, boostText, torqueText, torqueNum, torqueUnit, timingText, timingFit, torqueFit, modeVariants, fitsBox, FIT_SQUEEZE, boostFrac,
+    STRIP_Y, strip, stripGauges, STRIP_DROP, MAP, STOCK_MIDDLE, sideDials, belowCorners, aroundMap, overMap, cut, NOTCH, GEARBOX_HOLE, boxBezel, EDRIVE_HOLE, M_BOXES, M_HOLES, mCar, holes, TELLTALES, inCorner, distText, erangeText, splitText, outsideText, socText, kwText, reading, readingUp, bar, engineFocus, focus, PSI_PER_BAR, pressUnit, boostIn, boostNum, boostFit, boostUnitText, boostText, torqueText, torqueNum, torqueUnit, timingText, timingFit, torqueFit, modeVariants, fitsBox, FIT_SQUEEZE, boostFrac,
 };

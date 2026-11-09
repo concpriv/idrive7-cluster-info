@@ -99,6 +99,20 @@ module.exports = {
     pieces(o) {
         const gearC = (t, d) => ({ color: [C.gearText(d) === 'R' ? t.red : t.text, 1], glow: [t.glow, 0.5] });
         const elecTxt = (t) => ({ color: [t.ev, 1], glow: [t.ev, 0.3] });
+        if (o.centre === 'map' && C.strip(o)) {
+            // the car's own strip (no boxes): the two dials the same size either side of the map, mirrored about
+            // the centre line (layout_common.sideDials); the speed above the speedometer, the gear above the tach,
+            // both clear of the slanted corners; the time and outside temperature either side of the cowl
+            const g = C.sideDials(o, C.MAP), top = C.MAP.y, hy = C.belowCorners(g.L - 80, g.L + 80, 4), hh = g.top - 6 - hy;
+            return C.aroundMap().map((r, i) => C.flat('bg' + i, r.x, r.y, r.w, r.h, 'bg')).concat(
+                dialSet(o, 'speed', g.L, g.size, g.cy), dialSet(o, 'rpm', g.R, g.size, g.cy), [
+                    C.text('clock', 520, top - 76, 200, 34, C.clock, glowText),
+                    C.text('outside', 1200, top - 76, 200, 34, (d) => C.outsideText(o, d.outside), glowText),
+                    C.text('speedDigits', g.L - 80, hy, 160, hh - 24, (d) => C.speedText(o, d), glowText),
+                    C.text('speedDigitsUnit', g.L - 80, hy + hh - 22, 160, 20, C.speedUnit(o), lbl, { tracking: 0.12 }),
+                    C.text('gear', g.R - 80, hy, 160, hh, C.gearText, gearC),
+                ]);
+        }
         if (o.centre === 'map') {
             // the speedometer left of the map; a small tach right of the map and the dark box; the gear and speed
             // in the free corner above the box; the ranges in the strip under the map, above the warning lights
@@ -120,6 +134,18 @@ module.exports = {
             // the strip's, the fuel and charge gauges above them (layouts.js)
             const SS = 600, scy = 328, X = 830, W = 260, Y = 134, H = 470;
             return [C.flat('bg', 0, 0, 1920, 720, 'bg')].concat(dialSet(o, 'speed', 452, SS, scy), dialSet(o, 'rpm', 1468, SS, scy), centreDisplay(o, X, Y, W, H, gearC, elecTxt));
+        }
+        if (o.centre === 'stock' && C.strip(o)) {
+            // the car's own strip (no boxes) with the stock cluster's middle (x 566-1104) left showing: the dials
+            // the same size either side of it, mirrored about the centre line (layout_common.sideDials); between the
+            // middle and the tach, the boost (or the charge) and its bar
+            const g = C.sideDials(o, C.STOCK_MIDDLE, 40), gx = C.STOCK_MIDDLE.x + C.STOCK_MIDDLE.w + 16, gw = g.R - g.size / 2 - 16 - gx;
+            return [C.flat('bg', 0, 0, C.STOCK_MIDDLE.x, 720, 'bg'), C.flat('bgR', gx - 16, 0, 1920 - gx + 16, 720, 'bg')].concat(
+                dialSet(o, 'speed', g.L, g.size, g.cy), dialSet(o, 'rpm', g.R, g.size, g.cy), [
+                    C.text('socTxt', gx, g.cy - 40, gw, 44, C.focus.charge(o), C.engineFocus(o) ? glowText : elecTxt),
+                    C.text('socLbl', gx, g.cy + 8, gw, 18, C.focus.chargeLabel ? C.focus.chargeLabel(o) : '', lbl, { tracking: 0.12 }),
+                    C.bar('soc', gx + 8, g.cy + 36, gw - 16, 14, C.focus.bar(o), (t) => ({ track: t.track, fill0: C.engineFocus(o) ? t.accent : t.ev, fill1: C.engineFocus(o) ? t.accent : t.ev, redc: t.red, tip: t.glow, tick: t.dim, num: t.num }), 12),
+                ]);
         }
         // the speedometer left; with the stock centre the tach between it and the dark box, else full size left
         // of the box with the slim display between the dials; the ranges right of the box
