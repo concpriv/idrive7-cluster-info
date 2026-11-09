@@ -53,7 +53,13 @@ mgu.run({
         const clockNow = () => { clock.setZone(settings.get('timeZone')); clock.setTwelve(settings.get('clock') !== '24'); };
         clockNow();
         settings.onChange((k) => { if (k === 'timeZone' || k === 'clock') clockNow(); });
-        const showing = () => settings.get('show') === 'on';
+        /* Settings > Bottom strip: the KOMBI decides on its dark boxes when the panel comes up, not while it is up
+         * (X4M, 2026-11-09: a change made with the layout showing left the boxes; the same setting with the layout
+         * put up again had none). So a change takes the layout down for REMAP_MS, longer than the renderer keeps
+         * the slot after the last layer goes (panel_linger_ms, 3 s), and puts it up fresh. */
+        const REMAP_MS = 5000;
+        let downUntil = 0;
+        const showing = () => settings.get('show') === 'on' && Date.now() >= downUntil;
         // every reading (data.js, shared with Cluster Centre): the car's signals, the engine unit over UDS for
         // what a layout needs (layout.needs), eDrive Live's charge and power while shown
         const D = startData(ctx, { shown: showing });
@@ -126,6 +132,10 @@ mgu.run({
             }
         }, 500);
         settings.onChange((k) => {
+            if (k === 'bottomStrip' && settings.get('show') === 'on') {
+                downUntil = Date.now() + REMAP_MS;
+                log.info('bottom strip: ' + settings.get('bottomStrip') + '; the layout down for ' + REMAP_MS / 1000 + ' s, then up fresh');
+            }
             if (k === 'look' || k === 'background') return cluster.recolour();
             if (k === 'layout') layout = byId(settings.get('layout'));
             if (['layout', 'centre', 'speedUnit', 'tempUnit', 'torqueUnit', 'redline', 'rpmMax', 'boxClear', 'boxBezel', 'cluster', 'bottomStrip', 'vehicle', 'tankLitres', 'batteryReads'].indexOf(k) >= 0) cluster.rebuild();

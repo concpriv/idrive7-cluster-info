@@ -2191,6 +2191,10 @@
         [
           "utc+9",
           "Korea / Japan (UTC+9)"
+        ],
+        [
+          "melbourne",
+          "Melbourne / Sydney / Canberra / Hobart (AEST, daylight saving)"
         ]
       ]
     },
