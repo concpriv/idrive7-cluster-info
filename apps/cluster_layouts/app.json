@@ -2,7 +2,7 @@
   "id": "cluster_layouts",
   "title": "Cluster Layouts",
   "description": "Your own layout on the whole instrument cluster (round dials, gear, temperatures), drawn by the cluster itself",
-  "version": "0.13.2",
+  "version": "0.13.102",
   "startType": "autostart",
   "vendor": "custom",
   "loggingId": "OA9L",
@@ -269,6 +269,22 @@
       ]
     },
     {
+      "key": "bottomClear",
+      "label": "Bottom bar (warning lights, gear, outside temperature)",
+      "type": "choice",
+      "default": "cover",
+      "options": [
+        [
+          "cover",
+          "Layout down to the bottom edge, as designed"
+        ],
+        [
+          "clear",
+          "Keep it clear: nothing below y 640 (test: may stop the dark boxes)"
+        ]
+      ]
+    },
+    {
       "key": "boxClear",
       "label": "Draw around the gear box (Digital dash)",
       "type": "choice",
@@ -466,6 +482,10 @@
         [
           "eet",
           "Eastern Europe"
+        ],
+        [
+          "melbourne",
+          "Melbourne / Sydney / Canberra / Hobart (AEST, daylight saving)"
         ]
       ]
     },

@@ -5,11 +5,14 @@
  * time-zone database needed).
  *   us: from the second Sunday of March 2:00 to the first Sunday of November 2:00, local time
  *   eu: from the last Sunday of March 1:00 UTC to the last Sunday of October 1:00 UTC
+ *   au: (south-eastern Australia, southern summer) from the first Sunday of October 2:00 local standard time to
+ *       the first Sunday of April 3:00 local daylight time; in force across the new year
  */
 const ZONES = {
     eastern: { off: -5, dst: 'us' }, central: { off: -6, dst: 'us' }, mountain: { off: -7, dst: 'us' },
     arizona: { off: -7, dst: null }, pacific: { off: -8, dst: 'us' }, alaska: { off: -9, dst: 'us' }, hawaii: { off: -10, dst: null },
     atlantic: { off: -4, dst: 'us' }, utc: { off: 0, dst: null }, uk: { off: 0, dst: 'eu' }, cet: { off: 1, dst: 'eu' }, eet: { off: 2, dst: 'eu' },
+    melbourne: { off: 10, dst: 'au' },
 };
 let zone = ZONES.eastern;
 
@@ -24,6 +27,11 @@ function inDst(z, ms) {
     if (!z.dst) return false;
     const y = new Date(ms).getUTCFullYear();
     if (z.dst === 'eu') return ms >= Date.UTC(y, 2, sunday(y, 2, -1), 1) && ms < Date.UTC(y, 9, sunday(y, 9, -1), 1);
+    if (z.dst === 'au') {
+        // on at 2:00 local standard time in October, off at 3:00 local daylight time in April (= 2:00 standard)
+        const on = Date.UTC(y, 9, sunday(y, 9, 1), 2) - z.off * 3600000, off = Date.UTC(y, 3, sunday(y, 3, 1), 3) - (z.off + 1) * 3600000;
+        return ms >= on || ms < off;
+    }
     // us: 2:00 local standard time on, 2:00 local daylight time off
     const on = Date.UTC(y, 2, sunday(y, 2, 2), 2) - z.off * 3600000, off = Date.UTC(y, 10, sunday(y, 10, 1), 2) - (z.off + 1) * 3600000;
     return ms >= on && ms < off;

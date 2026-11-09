@@ -74,20 +74,78 @@ function mMoves(L, o, list) {
     return out;
 }
 
+/*
+ * Settings > Bottom bar: keep clear. The KOMBI keeps a bar along the bottom of the panel for its own warning
+ * lights, gear selector and outside temperature. Reported from a car (bimmerpost "Custom native iDrive 7 apps",
+ * page 24, rasca1, 2026-11-08): with a layout's backdrop reaching below y 640 the KOMBI puts its dark boxes up,
+ * and with the backdrop cut out there it doesn't. NOT VERIFIED with these layouts. With the setting on, nothing
+ * of a layout reaches below BOTTOM:
+ *   - a dial crossing it is scaled about its top centre so it ends at BOTTOM, with every piece on it (its
+ *     sub-dial, its labels: inside its rect and on no card of their own); a dial's shader works from its size,
+ *     so it keeps its shape, and a band on it has its pixel geometry (u_geo) scaled with it;
+ *   - any other piece taller than SMALL (a background, a card, a scale, an arc) is cut at BOTTOM: the shaders
+ *     work in pixels from the layer's top-left (shaders.js), so what is above the cut stays exactly where it was;
+ *     one wholly below it is left out;
+ *   - a small one (a text, an icon, a bar: up to SMALL high) moves up so it ends at BOTTOM.
+ */
+const BOTTOM = 640, SMALL = 80;
+const isBackdrop = (p) => p.kind === 'bg' || p.kind === 'flat' || p.kind === 'panel' || /^bg/.test(p.key || '');
+const inside = (q, r) => q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h;
+function clearBottom(list) {
+    const out = list.map((p) => Object.assign({}, p));
+    const done = new Set();
+    // cards (backdrops smaller than half the panel): a piece on a card belongs to it, not to a dial over it
+    const cards = out.filter((p) => isBackdrop(p) && !/^bg/.test(p.key || '') && p.kind !== 'bg' && p.w * p.h < 1920 * 720 / 2)
+        .map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
+    const onOtherCard = (q, r) => cards.some((c) => inside(q, c) && !inside(c, r));
+    // dials crossing BOTTOM, largest first, scaled with what is on them
+    out.filter((p) => p.kind === 'dial' && p.y < BOTTOM && p.y + p.h > BOTTOM)
+        .sort((a, b) => b.w * b.h - a.w * a.h)
+        .forEach((p) => {
+            if (done.has(p)) return;
+            const r = { x: p.x, y: p.y, w: p.w, h: p.h }, f = (BOTTOM - r.y) / r.h, cx = r.x + r.w / 2;
+            out.forEach((q) => {
+                if (done.has(q) || isBackdrop(q) || (q !== p && (!inside(q, r) || onOtherCard(q, r)))) return;
+                q.x = Math.round(cx + (q.x - cx) * f);
+                q.y = Math.round(r.y + (q.y - r.y) * f);
+                q.w = Math.max(1, Math.round(q.w * f));
+                q.h = Math.max(1, Math.min(Math.round(q.h * f), BOTTOM - q.y));
+                if (q.kind === 'band' && q.params && q.params.u_geo) {
+                    q.params = Object.assign({}, q.params, { u_geo: q.params.u_geo.map((v) => v * f) });
+                }
+                done.add(q);
+            });
+        });
+    // anything else taller than SMALL crossing BOTTOM: cut there
+    out.forEach((p) => {
+        if (done.has(p) || p.y + p.h <= BOTTOM || p.h <= SMALL) return;
+        p.h = BOTTOM - p.y;
+        done.add(p);
+    });
+    // small pieces still crossing or below it: moved up
+    out.forEach((p) => {
+        if (done.has(p) || p.y + p.h <= BOTTOM) return;
+        p.y = BOTTOM - p.h;
+        done.add(p);
+    });
+    return out.filter((p) => p.h > 0 && p.w > 0);
+}
+
 LAYOUTS.forEach((L) => {
     const own = L.pieces;
     L.pieces = (o) => {
         let list = (own(o) || []).slice();
         if (mCar(o)) list = mMoves(L, o, list);
-        if (!o || o.boxBezel !== true) return list;
-        let i = 0;
-        while (i < list.length && /^bg/.test(list[i].key)) i++;
-        const b = boxBezel();
-        // with the map: from the map's right edge (the map's own picture runs under the bracket's left end)
-        if (o && o.centre === 'map') { const r = b.x + b.w; b.x = MAP.x + MAP.w; b.w = r - b.x; }
-        list.splice(i, 0, b);
-        return list;
+        if (o && o.boxBezel === true) {
+            let i = 0;
+            while (i < list.length && /^bg/.test(list[i].key)) i++;
+            const b = boxBezel();
+            // with the map: from the map's right edge (the map's own picture runs under the bracket's left end)
+            if (o.centre === 'map') { const r = b.x + b.w; b.x = MAP.x + MAP.w; b.w = r - b.x; }
+            list.splice(i, 0, b);
+        }
+        return o && o.bottomClear === true ? clearBottom(list) : list;
     };
 });
 const byId = (id) => LAYOUTS.find((l) => l.id === id) || LAYOUTS[0];
-module.exports = { LAYOUTS, byId, M_MOVES, M_ON_DIAL };
+module.exports = { LAYOUTS, byId, M_MOVES, M_ON_DIAL, BOTTOM, clearBottom };

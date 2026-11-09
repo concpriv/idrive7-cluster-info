@@ -64,6 +64,7 @@ mgu.run({
             boxClear: settings.get('boxClear') === 'on',
             cluster: settings.get('cluster') === 'm' ? 'm' : 'standard',   // an M car's KOMBI: its two boxes in the middle (layouts.js)
             boxBezel: settings.get('boxBezel') === 'on',   // (off: the box sits on the plain background)
+            bottomClear: settings.get('bottomClear') === 'clear',   // nothing below y 640, the KOMBI's bottom bar (layouts.js)
             vehicle: D.vehicle().vehicle,      // set, or found from the car (Auto)
         });
         /** Live: demo data on, or the car's signals answer (a parked car sends nothing new for minutes, so a
@@ -115,7 +116,7 @@ mgu.run({
         settings.onChange((k) => {
             if (k === 'look' || k === 'background') return cluster.recolour();
             if (k === 'layout') layout = byId(settings.get('layout'));
-            if (['layout', 'centre', 'speedUnit', 'tempUnit', 'redline', 'rpmMax', 'boxClear', 'boxBezel', 'cluster', 'vehicle', 'tankLitres', 'batteryReads'].indexOf(k) >= 0) cluster.rebuild();
+            if (['layout', 'centre', 'speedUnit', 'tempUnit', 'redline', 'rpmMax', 'boxClear', 'boxBezel', 'bottomClear', 'cluster', 'vehicle', 'tankLitres', 'batteryReads'].indexOf(k) >= 0) cluster.rebuild();
         });
 
         /* ---------- the car's range and charge signals, from its own catalog ---------- */
