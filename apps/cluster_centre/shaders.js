@@ -60,11 +60,14 @@ void main() { gl_FragColor = u_color; }`;
  * A rounded card of glass: a vertical gradient, a faint diagonal sheen, a light along its top edge, a border
  * brighter at the top than the bottom, and a soft shadow inside its lower edge.
  *   u_box     corner radius, border width, top light (0..1), opacity
+ *   u_clip    (optional, radius 0: none) a circle it is cut to: centre px in this layer (may be outside it), radius,
+ *             the width of a border along the cut
  */
 const PANEL_FS = `#version 100
 ${HIGHP}${COMMON}
 uniform vec2 u_size;
 uniform vec4 u_box;
+uniform vec4 u_clip;
 uniform vec3 u_top;
 uniform vec3 u_bottom;
 uniform vec3 u_border;
@@ -72,6 +75,7 @@ varying vec2 v_uv;
 void main() {
     vec2 p = v_uv * u_size, h = u_size * 0.5, q = abs(p - h) - (h - u_box.x);
     float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - u_box.x;   /* < 0 inside */
+    if (u_clip.z > 0.0) dist = max(dist, length(p - u_clip.xy) - u_clip.z);
     float inside = clamp(0.5 - dist, 0.0, 1.0);
     if (inside <= 0.0) { gl_FragColor = vec4(0.0); return; }
     vec3 col = mix(u_top, u_bottom, v_uv.y);
@@ -432,6 +436,7 @@ uniform vec2 u_size;
 uniform vec4 u_look;
 uniform float u_feather;           /* px at the left and right edges fading to see-through */
 uniform vec2 u_weave;              /* (optional) a carbon-fibre twill: strength 0..1, tow width px */
+uniform vec2 u_band;               /* (optional, both 0: none) black outside x u_band.x..u_band.y (px in this layer) */
 uniform vec3 u_top;
 uniform vec3 u_bottom;
 uniform vec3 u_accent;
@@ -456,6 +461,7 @@ void main() {
     vec2 v = (v_uv - 0.5) * vec2(1.0, 1.4);
     col *= 1.0 - u_look.z * 0.55 * smoothstep(0.35, 0.8, length(v));
     float a = u_feather > 0.0 ? smoothstep(0.0, u_feather, min(p.x, u_size.x - p.x)) : 1.0;
+    if (u_band.y > 0.0) col *= step(u_band.x, p.x) * step(p.x, u_band.y);
     gl_FragColor = vec4(col, a);
 }`;
 

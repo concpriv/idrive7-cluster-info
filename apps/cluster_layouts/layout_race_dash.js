@@ -3,14 +3,15 @@
  * layout_race_dash.js - "Race dash": an aftermarket motorsport dash look. Two big yellow dials on carbon fibre, the
  * rev counter left and the speedometer right, each with a black centre disc, black numerals, a long red needle and
  * the red zone as a red sector; a two-row box at each dial's lower right (rpm and fuel, speed and gear); four
- * reading tiles down each side, each with its level bar, value, unit and name. No maker's logo.
+ * reading tiles down each side, each with its level bar, value, unit and name. The maker's name (as text in the
+ * dash's own font, not a logo) in the rev counter's disc.
  *
  * Every reading is a real one from the car (data.js). Where such dashes show what this car does not send (manifold
  * absolute pressure, throttle, injector duty, battery voltage, oil pressure), the tile shows the nearest reading the
  * car does send (boost, torque, oil temperature, gearbox temperature, fuel rail pressure) under its own name.
  *
  * Compositions, from the panel's usable areas (layout_common):
- *   the car's strip (default): 524 px dials almost touching under the camera's cowl, ending above the strip, the
+ *   the car's strip (default): 518 px dials touching at the centre line under the camera's cowl, ending above the strip, the
  *     tiles beside them, black outside (the fuel shown in the rev counter's box, so no strip gauge);
  *   the full panel: 500 px dials, both left of the KOMBI's gear box and clear of an M car's first box (the
  *     speedometer left with an M car, the rev counter's face may pass under its second), the right tiles under
@@ -110,11 +111,13 @@ function dial(o, which, cx, cy, size, box) {
         colors: dialColours, max: s.max, sweep: true,
         value: rpm ? (d) => (num(d.rpm) ? d.rpm / 1000 : 0) : (d) => (num(d.speed) ? C.speedIn(o, d.speed) : 0),
     }];
+    if (rpm && box) out.push(C.text('dialName', cx - R * 0.42, cy - R * 0.3, R * 0.84, Math.round(R * 0.15), 'HALTECH', (t) => ({ color: [t.value, 1], glow: [t.glow, 0] }), { tracking: 0.08 }));
     if (!box) return out;
     // the box: two rows, each a value, its name under it and its unit at the top right
     const bx = Math.round(cx + 0.1 * r), bwid = Math.round(0.7 * r), rh = Math.round(0.3 * r), y1 = Math.round(cy + 0.2 * r), y2 = y1 + rh + Math.round(0.03 * r);
     // (one panel for both rows: the renderer's 64 layers an app)
-    const panel = { key: which + 'InfoBox', kind: 'panel', x: bx, y: y1, w: bwid, h: y2 + rh - y1, z: 5, params: { u_box: [6, 1.5, 0.15, 1] },
+    // (cut to the dial's face, inside its bezel: the box's lower right corner follows the rim)
+    const panel = { key: which + 'InfoBox', kind: 'panel', x: bx, y: y1, w: bwid, h: y2 + rh - y1, z: 5, params: { u_box: [6, 1.5, 0.15, 1], u_clip: [cx - bx, cy - y1, R - 1, 0] },
         colors: (t) => ({ top: t.box0, bottom: t.box1, border: t.boxEdge }) };
     const row = (key, y, value, name, unit, colours) => [
         C.text(key, bx + 12, y + Math.round(rh * 0.1), Math.round(bwid * 0.64), Math.round(rh * 0.52), value, colours || white, { align: 0 }),
@@ -122,7 +125,7 @@ function dial(o, which, cx, cy, size, box) {
     ].concat(unit ? [C.text(key + 'Unit', bx + Math.round(bwid * 0.62), y + Math.round(rh * 0.1), Math.round(bwid * 0.34), Math.round(rh * 0.19), unit, small, { align: 1 })] : []);
     return out.concat([panel], rpm
         ? row('rpmBox', y1, (d) => (num(d.rpm) ? String(Math.round(d.rpm)) : '--'), 'RPM', null).concat(
-            row('fuelPct', y2, (d) => (num(d.fuelPct) ? d.fuelPct.toFixed(1) : '--'), 'FUEL', '%'))
+            row('fuelPct', y2, (d) => (num(d.fuelPct) ? d.fuelPct.toFixed(1) : '--'), 'FUEL %', null))
         : row('speedBox', y1, (d) => C.speedText(o, d), 'SPEED', C.speedUnit(o)).concat(
             row('gearBox', y2, C.gearText, 'GEAR', null, gearC)));
 }
@@ -145,7 +148,7 @@ module.exports = {
 
     pieces(o) {
         const centre = o.centre || 'info', strip = C.strip(o), m = C.mCar(o);
-        const bg = (x, y, w, h, key) => ({ key: key || 'bg', kind: 'bg', x, y, w, h, params: { u_look: [0, 0, 0.5, 8], u_weave: [0.55, 7] },
+        const bg = (x, y, w, h, key, band) => ({ key: key || 'bg', kind: 'bg', x, y, w, h, params: { u_look: [0, 0, 0.5, 8], u_weave: [0.55, 7], u_band: band || [0, 0] },
             colors: (t) => ({ top: t.bgTop, bottom: t.bgBottom, accent: t.accent }) });
 
         if (centre === 'map') {
@@ -176,13 +179,12 @@ module.exports = {
         }
         const all = [bg(0, 0, 1920, 720)];
         if (strip) {
-            // the car's strip (default): the dials almost touching under the camera's cowl (x 730-1190 to y 128: their
-            // rims just clear of its corners), their bottoms above the strip; the tiles beside them, below the slanted
-            // top corners; plain black outside (a black flat under the carbon)
-            const S = 524, r = S / 2, cy = C.STRIP_Y - 6 - r, L = 670, R = 1920 - L, tw = 230, lx = L - r - 8 - tw, rx = R + r + 8;
+            // the car's strip (default): the dials touching at the centre line, as large as the camera's cowl (x 730-1190
+            // to y 128) lets them be with their bottoms above the strip; the tiles beside them, below the slanted top
+            // corners; plain black outside (the background's band)
+            const S = 518, r = S / 2, cy = C.STRIP_Y - 6 - r, L = 960 - r, R = 960 + r, tw = 230, lx = L - r - 8 - tw, rx = R + r + 8;
             const top = C.belowCorners(lx, lx + tw, 4);
-            return [{ key: 'bgBlack', kind: 'flat', x: 0, y: 0, w: 1920, h: 720, z: -210, colors: () => ({ color: ['#000000', 1] }) },
-                bg(lx - 8, 0, rx + tw + 16 - lx, 720)].concat(dial(o, 'rpm', L, cy, S, true), dial(o, 'speed', R, cy, S, true),
+            return [bg(0, 0, 1920, 720, 'bg', [lx - 8, rx + tw + 8])].concat(dial(o, 'rpm', L, cy, S, true), dial(o, 'speed', R, cy, S, true),
                 column(o, LEFT, 'L', lx, tw, top, C.STRIP_Y - 4),
                 // (a plug-in hybrid: the shared charge gauge under them, above the strip's electric range)
                 column(o, RIGHT, 'R', rx, tw, top, o.vehicle === 'ice' ? C.STRIP_Y - 4 : 590));
@@ -190,8 +192,9 @@ module.exports = {
         // the full panel: both dials left of the KOMBI's gear box (x 1410), the left one clear of an M car's first box
         // (x 778; with an M car the speedometer goes left, so only the rev counter's face passes under its second
         // box), the right tiles under its eDrive box (y 265)
-        const left = m ? 'speed' : 'rpm', right = m ? 'rpm' : 'speed';
-        return all.concat(dial(o, left, 520, 395, 500, true), dial(o, right, 1160, 395, 500, !m),
+        // (without an M car the two touch, the right one ending at the gear box)
+        const left = m ? 'speed' : 'rpm', right = m ? 'rpm' : 'speed', lcx = m ? 520 : 660;
+        return all.concat(dial(o, left, lcx, 395, 500, true), dial(o, right, 1160, 395, 500, !m),
             column(o, LEFT, 'L', 8, 230, C.belowCorners(8, 238, 4), 700),
             column(o, m ? ['timing', 'torque', 'gearbox', 'fuel'] : RIGHT, 'R', 1682, 230, 272, 700));
     },
