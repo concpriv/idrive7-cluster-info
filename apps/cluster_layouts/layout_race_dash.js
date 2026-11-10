@@ -1,6 +1,6 @@
 'use strict';
 /**
- * layout_race_dash.js - "Race dash": an aftermarket motorsport dash look. Two big yellow dials on carbon fibre, the
+ * layout_race_dash.js - "Race dash": an aftermarket motorsport dash look. Two big yellow dials on forged carbon, the
  * rev counter left and the speedometer right, each with a black centre disc, black numerals, a long red needle and
  * the red zone as a red sector; a two-row box at each dial's lower right (rpm and fuel, speed and gear); four
  * reading tiles down each side, each with its level bar, value, unit and name. No logo or maker's name.
@@ -22,7 +22,7 @@ const C = require('./layout_common');
 
 const PALETTES = {
     comfort: {
-        bg: '#0c0c0d', bgTop: '#141416', bgBottom: '#060607', face0: '#ffd31f', face1: '#f4b800', bezel: '#4c4c51', bezel2: '#141416',
+        bg: '#0c0c0d', bgTop: '#1d1d20', bgBottom: '#111113', face0: '#ffd31f', face1: '#f4b800', bezel: '#4c4c51', bezel2: '#141416',
         tick: '#121212', minor: '#2a2a2a', num: '#0d0d0d', red: '#e3161c', needle: '#d8161c', hub: '#151517', disc: '#0d0d0f', ring: '#e8b800',
         num2: '#ffffff', glow: '#000000', accent: '#e8b800', text: '#ffffff', value: '#ffd31f', dim: '#c9c9c9',
         tile0: '#1d1d20', tile1: '#0f0f11', tileEdge: '#4a4a50', box0: '#26262a', box1: '#0d0d0f', boxEdge: '#7a7a80', track: '#3a3a3e',
@@ -146,7 +146,9 @@ module.exports = {
 
     pieces(o) {
         const centre = o.centre || 'info', strip = C.strip(o), m = C.mCar(o);
-        const bg = (x, y, w, h, key, band) => ({ key: key || 'bg', kind: 'bg', x, y, w, h, params: { u_look: [0, 0, 0.5, 8], u_weave: [0.55, 7], u_band: band || [0, 0] },
+        // forged carbon; with a screen rectangle, black outside it (rounded corners)
+        const bg = (x, y, w, h, key, screen) => ({ key: key || 'bg', kind: 'bg', x, y, w, h,
+            params: { u_look: [0, 0, 0.45, 8], u_forged: [0.85, 34], u_screen: screen || [0, 0, 0, 0], u_screen_r: [screen ? 26 : 0] },
             colors: (t) => ({ top: t.bgTop, bottom: t.bgBottom, accent: t.accent }) });
 
         if (centre === 'map') {
@@ -179,10 +181,11 @@ module.exports = {
         if (strip) {
             // the car's strip (default): the dials touching at the centre line, as large as the camera's cowl (x 730-1190
             // to y 128) lets them be with their bottoms above the strip; the tiles beside them, below the slanted top
-            // corners; plain black outside (the background's band)
+            // corners; the carbon ends just outside the tiles (rounded corners), plain black outside
             const S = 518, r = S / 2, cy = C.STRIP_Y - 6 - r, L = 960 - r, R = 960 + r, tw = 230, lx = L - r - 8 - tw, rx = R + r + 8;
             const top = C.belowCorners(lx, lx + tw, 4);
-            return [bg(0, 0, 1920, 720, 'bg', [lx - 8, rx + tw + 8])].concat(dial(o, 'rpm', L, cy, S, true), dial(o, 'speed', R, cy, S, true),
+            // (the screen: the carbon from just outside the tiles, to the strip; black outside it)
+            return [bg(0, 0, 1920, 720, 'bg', [lx - 10, 0, rx + tw + 10, C.STRIP_Y])].concat(dial(o, 'rpm', L, cy, S, true), dial(o, 'speed', R, cy, S, true),
                 column(o, LEFT, 'L', lx, tw, top, C.STRIP_Y - 4),
                 // (a plug-in hybrid: the shared charge gauge under them, above the strip's electric range)
                 column(o, RIGHT, 'R', rx, tw, top, o.vehicle === 'ice' ? C.STRIP_Y - 4 : 590));

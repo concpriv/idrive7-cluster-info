@@ -436,11 +436,15 @@ uniform vec2 u_size;
 uniform vec4 u_look;
 uniform float u_feather;           /* px at the left and right edges fading to see-through */
 uniform vec2 u_weave;              /* (optional) a carbon-fibre twill: strength 0..1, tow width px */
-uniform vec2 u_band;               /* (optional, both 0: none) black outside x u_band.x..u_band.y (px in this layer) */
+uniform vec2 u_forged;             /* (optional) forged carbon: strength 0..1, flake size px */
+uniform vec4 u_screen;             /* (optional, all 0: none) black outside this rounded rectangle: x0, y0, x1, y1 px */
+uniform float u_screen_r;          /* its corner radius px */
 uniform vec3 u_top;
 uniform vec3 u_bottom;
 uniform vec3 u_accent;
 varying vec2 v_uv;
+/* two pseudo-random numbers 0..1 for a cell */
+vec2 hash2(vec2 c) { return fract(sin(vec2(dot(c, vec2(127.1, 311.7)), dot(c, vec2(269.5, 183.3)))) * 43758.5453); }
 void main() {
     vec2 p = v_uv * u_size;
     vec3 col = mix(u_top, u_bottom, v_uv.y);
@@ -458,10 +462,39 @@ void main() {
         float shade = 0.55 + 0.45 * sin(across * 3.14159) * (0.75 + 0.25 * sin(along * 6.28318));
         col *= 1.0 + u_weave.x * ((warp ? 0.9 : 0.55) * shade - 0.6);
     }
+    if (u_forged.x > 0.0) {
+        /* forged carbon: chopped flakes (a cell pattern, two sizes), each its own grey and its own grain direction */
+        float tone = 0.0;
+        for (int oct = 0; oct < 2; oct++) {
+            float sc = oct == 0 ? 1.0 : 0.43;
+            vec2 q = p / (u_forged.y * sc) + float(oct) * 17.31;
+            vec2 i = floor(q), f = fract(q);
+            float d1 = 8.0, d2 = 8.0; vec2 id = vec2(0.0);
+            for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+                vec2 g = vec2(float(x), float(y)), o = hash2(i + g), r = g + o - f;
+                /* flakes longer than they are wide, each cell its own way */
+                vec2 h = hash2(i + g + 3.7);
+                float a = h.x * 6.2832; vec2 ax = vec2(cos(a), sin(a));
+                float dd = dot(r, ax) * dot(r, ax) * 0.35 + (dot(r, r) - dot(r, ax) * dot(r, ax)) * 1.6;
+                if (dd < d1) { d2 = d1; d1 = dd; id = i + g; } else if (dd < d2) { d2 = dd; }
+            }
+            vec2 h = hash2(id + 11.1);
+            float a = h.y * 6.2832;
+            float grain = 0.5 + 0.5 * sin(dot(q, vec2(cos(a), sin(a))) * 14.0 + h.x * 6.2832);
+            float edge = smoothstep(0.0, 0.12, sqrt(d2) - sqrt(d1));
+            tone += (oct == 0 ? 0.65 : 0.35) * (h.x * 0.75 + grain * 0.25) * mix(0.55, 1.0, edge);
+        }
+        col *= 1.0 + u_forged.x * (tone * 1.5 - 0.75);
+    }
     vec2 v = (v_uv - 0.5) * vec2(1.0, 1.4);
     col *= 1.0 - u_look.z * 0.55 * smoothstep(0.35, 0.8, length(v));
     float a = u_feather > 0.0 ? smoothstep(0.0, u_feather, min(p.x, u_size.x - p.x)) : 1.0;
-    if (u_band.y > 0.0) col *= step(u_band.x, p.x) * step(p.x, u_band.y);
+    if (u_screen.z > 0.0) {
+        vec2 c = (u_screen.xy + u_screen.zw) * 0.5, hs = (u_screen.zw - u_screen.xy) * 0.5;
+        vec2 q = abs(p - c) - (hs - u_screen_r);
+        float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - u_screen_r;
+        col *= clamp(0.5 - sd, 0.0, 1.0);
+    }
     gl_FragColor = vec4(col, a);
 }`;
 
