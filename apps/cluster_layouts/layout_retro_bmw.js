@@ -18,7 +18,7 @@ const C = require('./layout_common');
 
 const PALETTES = {
     comfort: {
-        bg: '#000000', house0: '#3b3b3e', house1: '#2b2b2e', face0: '#0b0b0c', face1: '#050505', bezel: '#5c5c60', bezel2: '#101012',
+        bg: '#000000', house0: '#55565b', house1: '#36373b', face0: '#0b0b0c', face1: '#050505', bezel: '#5c5c60', bezel2: '#101012',
         tick: '#f4f4f4', minor: '#e6e6e6', num: '#f6f6f6', red: '#e3140f', needle: '#f27c1c', hub: '#2c2c2f', glow: '#000000', accent: '#f27c1c',
         text: '#f6f6f6', dim: '#bdbdbd', win0: '#050505', win1: '#000000', winEdge: '#5a5a5e', bar: '#16b51c', track: '#0a2a0b',
         disc: '#000000', ring: '#000000', num2: '#ffffff',
@@ -92,6 +92,9 @@ function bigDials(o, L, R_, cy, size, full) {
             (d) => (num(d.rpm) ? d.rpm / 1000 : 0)),
     ];
     if (!full) return out;
+    // the needles a layer of their own above the windows and labels on the faces (the faces drawn without them)
+    const needles = out.map((p) => Object.assign({}, p, { key: p.key + 'Needle', z: 30, params: Object.assign({}, p.params, { u_part: [2] }) }));
+    out.forEach((p) => { p.params.u_part = [1]; });
     const lbl = (key, cx, y, w, h, s, colours) => C.text(key, cx - w / 2, Math.round(y), w, Math.round(h), s, colours || white);
     const ts = torqueScale(o), os = oilScale(o);
     return out.concat(
@@ -104,7 +107,7 @@ function bigDials(o, L, R_, cy, size, full) {
             lbl('rpmUnit2', R_, cy - 0.3 * R, 160, R * 0.09, 'x1000'),
             subDial('oilDial', R_, cy, R, os, (d) => (num(d.oil) ? clamp(C.tempIn(o, d.oil), 0, os.max) : 0)),
             { key: 'oilIcon', kind: 'icon', x: Math.round(R_ - 0.04 * R), y: Math.round(cy + 0.615 * R), w: Math.round(0.08 * R), h: Math.round(0.08 * R), z: 25,
-                params: { u_icon: [1], u_line: [0] }, colors: (t) => ({ color: [t.dim, 1] }) }]);
+                params: { u_icon: [1], u_line: [0] }, colors: (t) => ({ color: [t.dim, 1] }) }], needles);
 }
 
 module.exports = {
@@ -180,7 +183,8 @@ module.exports = {
             C.text(key + 'Lbl', x, bar + 10, w, 16, name, small, { align: 0, tracking: 0.08 }),
             C.text(key, x, bar + 30, w, barH - 38, value, white, { align: 0 }),
         ];
-        return [bg(0, 0, 1920, 720, 'bg', { u_screen: [X(0), 0, X(1290), C.STRIP_Y], u_screen_r: [18], u_shoulder: [X(245), X(1045), Y(10), 0.83] })].concat(
+        // (the housing in brushed metal)
+        return [bg(0, 0, 1920, 720, 'bg', { u_screen: [X(0), 0, X(1290), C.STRIP_Y], u_screen_r: [18], u_shoulder: [X(245), X(1045), Y(10), 0.83], u_brushed: [0.9, 160], u_look: [0, 0, 0.15, 8] })].concat(
             bigDials(o, L, R_, cy, size, true),
             dial('fuelDial', fuelX, auxY, aux, { max: 100, major: 25, minor: 12.5, numR: 0.6, len: 0.8 }, [-70, 70], Math.round(aR * 0.16),
                 (d) => (num(d.fuelPct) ? d.fuelPct : 0)),

@@ -102,6 +102,8 @@ void main() {
  *   u_look3   (optional, all 0: none) an inner disc's radius px (u_disc, under the needle, a u_ring line inside
  *             its edge), the red zone as a sector across the whole face band (1), the numerals there in u_num2
  *             (1), the ring line's width px; red zone 2: its major ticks red, no band
+ *   u_part    (optional) 0: all of it; 1: all but the needle and hub; 2: the needle, its shadow and the hub alone
+ *             (a layer of its own above what sits on the face, e.g. digital windows)
  *   u_clip    (optional, radius 0: none) drawn only inside a circle (centre px from this layer's centre, radius)
  *             and below a line (y px from this layer's centre), with a light line along it: a sub-dial
  */
@@ -115,6 +117,7 @@ uniform vec4 u_look;
 uniform vec4 u_look2;
 uniform vec4 u_look3;
 uniform vec4 u_clip;
+uniform float u_part;
 uniform float u_value;
 uniform float u_digit_adv;
 uniform vec3 u_disc;
@@ -159,6 +162,19 @@ void main() {
     float Ro = u_size.x * 0.5 - 2.0, bw = u_look2.x, R = Ro - bw;
     float disc = clamp(Ro - r + 0.5, 0.0, 1.0);
     if (disc <= 0.0) { gl_FragColor = vec4(0.0); return; }
+    if (u_part > 1.5) {
+        /* the needle layer alone: its shadow, the blade, the hub; see-through elsewhere */
+        vec4 acc = vec4(0.0);
+        acc = over(acc, vec3(0.0), blade(d - vec2(5.0, 8.0) * k, 7.0 * k) * 0.5 * u_look2.z);
+        float na = angleOf(u_value) * DEG, along = dot(d, vec2(sin(na), -cos(na)));
+        vec3 nc = along >= 0.0 ? mix(u_needle * 0.8, u_needle * 1.15, clamp(along / u_needle_dim.x, 0.0, 1.0)) : u_needle * 0.35;
+        acc = over(acc, nc, blade(d, 0.0));
+        float hr = 34.0 * k, lit = 0.5 + 0.5 * dot(d / max(r, 1.0), vec2(-0.6, -0.8));
+        acc = over(acc, mix(u_bezel2, u_bezel, lit * 0.8 + 0.1), clamp(hr - r + 0.5, 0.0, 1.0));
+        acc = over(acc, mix(u_hub, u_hub * 1.6, (1.0 - r / hr) * 0.6), clamp(hr * 0.78 - r + 0.5, 0.0, 1.0));
+        gl_FragColor = acc;
+        return;
+    }
     float ang = atan(d.x, -d.y) / DEG;
     /* a scale that runs past the bottom (an end < -180): its angles unwrapped, the gap between its ends split evenly */
     float lo = min(u_arc.x, u_arc.y), hi = max(u_arc.x, u_arc.y);
@@ -227,7 +243,7 @@ void main() {
         col = mix(col, u_ring, span(r, dr - 16.0 * k - u_look3.w, dr - 16.0 * k));
     }
     /* the needle: its shadow on the face, a glow, the blade (the tail darker) */
-    {
+    if (u_part < 0.5) {
         float sh = blade(d - vec2(5.0, 8.0) * k, 7.0 * k);
         col *= 1.0 - 0.55 * sh * u_look2.z;
         float na = angleOf(u_value) * DEG;
@@ -238,7 +254,7 @@ void main() {
         col = mix(col, nc, b);
     }
     /* the hub: a metal cap, lit from the top left */
-    {
+    if (u_part < 0.5) {
         float hr = 34.0 * k;
         float lit = 0.5 + 0.5 * dot(d / max(r, 1.0), vec2(-0.6, -0.8));
         col = mix(col, mix(u_bezel2, u_bezel, lit * 0.8 + 0.1), clamp(hr - r + 0.5, 0.0, 1.0));
@@ -449,6 +465,7 @@ uniform vec2 u_weave;              /* (optional) a carbon-fibre twill: strength 
 uniform vec2 u_forged;             /* (optional) forged carbon: strength 0..1, flake size px */
 uniform vec4 u_screen;             /* (optional, all 0: none) black outside this rounded rectangle: x0, y0, x1, y1 px */
 uniform float u_screen_r;          /* its corner radius px */
+uniform vec2 u_brushed;            /* (optional) brushed metal: strength 0..1, streak length px */
 uniform vec4 u_shoulder;           /* (optional, slope 0: none) black above the housing's top: flat from x0 to x1 at y,
                                     * falling away outside that at this slope (px down per px out) */
 uniform vec3 u_top;
@@ -473,6 +490,16 @@ void main() {
         float along = fract((warp ? q.y : q.x) * 0.5);
         float shade = 0.55 + 0.45 * sin(across * 3.14159) * (0.75 + 0.25 * sin(along * 6.28318));
         col *= 1.0 + u_weave.x * ((warp ? 0.9 : 0.55) * shade - 0.6);
+    }
+    if (u_brushed.x > 0.0) {
+        /* brushed metal: fine streaks along x (each pixel row its own, varying slowly along it), two broad soft sheens */
+        float L = u_brushed.y, row = floor(p.y), t = p.x / L;
+        float a0 = hash2(vec2(row, floor(t))).x, a1 = hash2(vec2(row, floor(t) + 1.0)).x;
+        float streak = mix(a0, a1, smoothstep(0.0, 1.0, fract(t)));
+        float fine = hash2(vec2(row * 0.37, floor(p.x / 3.0))).y;
+        col *= 1.0 + u_brushed.x * ((streak - 0.5) * 0.22 + (fine - 0.5) * 0.06);
+        float s1 = (v_uv.x - 0.32 + (v_uv.y - 0.5) * 0.25) / 0.22, s2 = (v_uv.x - 0.72 - (v_uv.y - 0.5) * 0.15) / 0.16;
+        col *= 1.0 + u_brushed.x * (0.32 * exp(-s1 * s1) + 0.2 * exp(-s2 * s2) - 0.08);
     }
     if (u_forged.x > 0.0) {
         /* forged carbon: chopped flakes (a cell pattern, two sizes), each its own grey and its own grain direction */
