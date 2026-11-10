@@ -3,7 +3,7 @@
  * test_geometry.js - the dial layouts' compositions, from the panel's usable areas (layout_common.sideDials):
  * above the car's own strip, in every centre (readings, map, stock), the speedometer and the tach are the same size,
  * mirrored about the panel's centre line, end above the strip and keep out of the slanted top corners; with the
- * map or the stock middle, they stay in the side columns and leave the centre to the car.
+ * map or the stock middle, they stay in the side columns (either one each side) and leave the centre to the car.
  *   node tools/test_geometry.js
  */
 const path = require('path');
@@ -14,7 +14,7 @@ const { byId } = require(path.join(__dirname, '..', 'apps', 'cluster_layouts', '
 let failures = 0;
 const ok = (name, cond, more) => { console.log((cond ? 'ok   ' : 'FAIL ') + name + (cond || !more ? '' : '  (' + more + ')')); if (!cond) failures++; };
 
-const DIALS = ['analog_sport', 'digital_round', 'retro', 'kyalami_analog'];
+const DIALS = ['analog_sport', 'digital_round', 'retro', 'kyalami_analog', 'race_dash'];
 const CENTRES = { info: null, map: C.MAP, stock: C.STOCK_MIDDLE };
 DIALS.forEach((id) => Object.keys(CENTRES).forEach((centre) => ['ice', 'phev'].forEach((vehicle) => {
     const o = { centre, vehicle, cluster: 'standard', bottomStrip: 'stock', speedUnit: 'kmh', tempUnit: 'c', redline: 7000, rpmMax: 8000 };
@@ -33,7 +33,7 @@ DIALS.forEach((id) => Object.keys(CENTRES).forEach((centre) => ['ice', 'phev'].f
     ok(`${tag}: rims out of the slanted corners`, !corner(sp) && !corner(rp));
     const mid = CENTRES[centre];
     if (mid) {
-        ok(`${tag}: the dials in the side columns, clear of the ${centre}`, sp.x + sp.w <= mid.x && rp.x >= mid.x + mid.w);
+        ok(`${tag}: the dials in the side columns, clear of the ${centre}`, [[sp, rp], [rp, sp]].some(([l, r]) => l.x + l.w <= mid.x && r.x >= mid.x + mid.w));
         const over = ps.filter((p) => p.kind !== 'flat' && !/^bg/.test(p.key) && p.x < mid.x + mid.w && p.x + p.w > mid.x && p.y < (centre === 'map' ? mid.y + mid.h : 720) && p.y + p.h > mid.y);
         ok(`${tag}: nothing over the ${centre}`, over.length === 0, over.map((p) => p.key).join(','));
         const heads = ps.filter((p) => p.kind === 'text' && p.y < sp.y);

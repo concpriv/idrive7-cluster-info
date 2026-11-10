@@ -144,7 +144,11 @@ LAYOUTS.forEach((L) => ['phev', 'ice'].forEach((vehicle) => check(L.id + ' (' + 
     const o = { speedUnit: 'mph', tempUnit: 'f', centre: 'info', redline: 7000, rpmMax: 8000, vehicle, cluster: 'standard', bottomStrip: 'stock' };
     const ps = L.pieces(o), keys = ps.map((p) => p.key);
     assert(!keys.some((k) => /^(fuel|elec|frange|erange)(Lbl|L)?$/.test(k)), 'range numbers: ' + keys.filter((k) => /fuel|elec|range/.test(k)).join(' '));
-    assert.strictEqual(keys.indexOf('stripFuel') >= 0, L.id !== 'retro', 'fuel gauge');
+    // (a layout with stripFuel: false, as Retro, shows the fuel level in a reading of its own: a text or a dial)
+    assert.strictEqual(keys.indexOf('stripFuel') >= 0, L.stripFuel !== false, 'fuel gauge');
+    const th = L.palette('comfort'), shows = (p) => (typeof p.text === 'function' ? p.text({ fuelPct: 42.5 }, th, p) !== p.text({}, th, p)
+        : typeof p.value === 'function' ? p.value({ fuelPct: 42.5 }) !== p.value({}) : false);
+    if (L.stripFuel === false) assert(ps.some((p) => /^fuel/.test(p.key) && shows(p)), 'its own fuel reading');
     assert.strictEqual(keys.indexOf('stripSoc') >= 0, vehicle !== 'ice', 'charge gauge');
     assert(ps.length <= 60, ps.length + ' pieces');
     const dials = ps.filter((p) => (p.key === 'speed' || p.key === 'rpm') && p.kind === 'dial');

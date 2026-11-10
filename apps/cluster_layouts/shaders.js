@@ -95,6 +95,9 @@ void main() {
  *   u_look2   bezel width px, size scale (1 for a 640 px dial: ticks and hub scale with it), needle
  *             shadow 0..1, glass 0..1
  *   u_value   the reading on the scale
+ *   u_look3   (optional, all 0: none) an inner disc's radius px (u_disc, under the needle, a u_ring line inside
+ *             its edge), the red zone as a sector across the whole face band (1), the numerals there in u_num2
+ *             (1), the ring line's width px
  */
 const DIAL_FS = `#version 100
 ${HIGHP}${COMMON}${GLYPH}
@@ -104,8 +107,12 @@ uniform vec4 u_arc;
 uniform vec4 u_needle_dim;
 uniform vec4 u_look;
 uniform vec4 u_look2;
+uniform vec4 u_look3;
 uniform float u_value;
 uniform float u_digit_adv;
+uniform vec3 u_disc;
+uniform vec3 u_ring;
+uniform vec3 u_num2;
 uniform vec3 u_face0;
 uniform vec3 u_face1;
 uniform vec3 u_bezel;
@@ -146,6 +153,8 @@ void main() {
     float disc = clamp(Ro - r + 0.5, 0.0, 1.0);
     if (disc <= 0.0) { gl_FragColor = vec4(0.0); return; }
     float ang = atan(d.x, -d.y) / DEG;
+    /* a scale that starts past the bottom (start < -180): its angles below the start, unwrapped */
+    if (u_arc.x < -180.0 && ang > u_arc.y) ang -= 360.0;
     float a0 = min(u_arc.x, u_arc.y), a1 = max(u_arc.x, u_arc.y);
 
     /* the face: lighter in the middle, deeper towards the rim, fine machined rings */
@@ -169,15 +178,16 @@ void main() {
         float vm = clamp(floor(v / u_scale.z + 0.5) * u_scale.z, 0.0, u_scale.x);
         float vM = clamp(floor(v / u_scale.y + 0.5) * u_scale.y, 0.0, u_scale.x);
         /* the red zone */
+        bool sector = u_look3.y > 0.5 && u_look3.x > 0.0;
         if (u_scale.w < u_scale.x) {
             float zone = clamp((v - u_scale.w) / u_scale.x * (a1 - a0) * DEG * r + 0.5, 0.0, 1.0);
-            col = mix(col, u_red, zone * span(r, R - 34.0 * k, R - 14.0 * k));
+            col = mix(col, u_red, zone * (sector ? span(r, u_look3.x, R) : span(r, R - 34.0 * k, R - 14.0 * k)));
         }
         /* backlight round the ticks */
         float gl = max(tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 7.0 * k), tick(vm, ang, r, R - 30.0 * k, R - 14.0 * k, 1.5 * k, 5.0 * k) * 0.6);
         col += u_glow * gl * u_look.x * 0.35;
         col = mix(col, u_minor, tick(vm, ang, r, R - 30.0 * k, R - 14.0 * k, 1.4 * k, 0.0));
-        col = mix(col, vM >= u_scale.w - 0.001 && u_scale.w < u_scale.x ? u_red : u_tick, tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 0.0));
+        col = mix(col, vM >= u_scale.w - 0.001 && u_scale.w < u_scale.x && !sector ? u_red : u_tick, tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 0.0));
     }
     /* the numerals, upright, at the nearest major tick, with their backlight */
     if (u_arc.z > 0.0) {
@@ -194,9 +204,17 @@ void main() {
             float ink = smoothstep(0.5 - 2.0 / h, 0.5 + 2.0 / h, s);
             float halo = smoothstep(0.22, 0.5, s) * (1.0 - ink);
             bool red = vk >= u_scale.w - 0.001 && u_scale.w < u_scale.x;
-            col += (red ? u_red : u_glow) * halo * u_look.x * 0.55;
-            col = mix(col, red ? u_red : u_num, ink);
+            bool white = red && u_look3.z > 0.5;
+            col += (red && !white ? u_red : u_glow) * halo * u_look.x * 0.55;
+            col = mix(col, white ? u_num2 : red ? u_red : u_num, ink);
         }
+    }
+    /* the inner disc (optional): dark, a dark rim at its edge and a fine line inside it; the needle above it */
+    if (u_look3.x > 0.0) {
+        float dr = u_look3.x;
+        col = mix(col, u_bezel2 * 0.5, clamp(dr + 6.0 * k - r + 0.5, 0.0, 1.0));
+        col = mix(col, mix(u_disc * 1.5, u_disc, r / dr), clamp(dr - r + 0.5, 0.0, 1.0));
+        col = mix(col, u_ring, span(r, dr - 16.0 * k - u_look3.w, dr - 16.0 * k));
     }
     /* the needle: its shadow on the face, a glow, the blade (the tail darker) */
     {
@@ -413,6 +431,7 @@ ${HIGHP}${COMMON}
 uniform vec2 u_size;
 uniform vec4 u_look;
 uniform float u_feather;           /* px at the left and right edges fading to see-through */
+uniform vec2 u_weave;              /* (optional) a carbon-fibre twill: strength 0..1, tow width px */
 uniform vec3 u_top;
 uniform vec3 u_bottom;
 uniform vec3 u_accent;
@@ -424,6 +443,16 @@ void main() {
     col += u_accent * u_look.x * 0.16 * exp(-dot(g, g));
     vec2 c = fract(p / u_look.w) - 0.5;
     col += vec3(1.0) * u_look.y * 0.035 * clamp(1.6 - length(c) * u_look.w, 0.0, 1.0);
+    if (u_weave.x > 0.0) {
+        /* 2x2 twill: tows alternate over and under, each shaded across its width */
+        vec2 q = p / u_weave.y;
+        float cell = mod(floor(q.x) + floor(q.y), 4.0);
+        bool warp = cell < 2.0;
+        float across = fract(warp ? q.x : q.y);
+        float along = fract((warp ? q.y : q.x) * 0.5);
+        float shade = 0.55 + 0.45 * sin(across * 3.14159) * (0.75 + 0.25 * sin(along * 6.28318));
+        col *= 1.0 + u_weave.x * ((warp ? 0.9 : 0.55) * shade - 0.6);
+    }
     vec2 v = (v_uv - 0.5) * vec2(1.0, 1.4);
     col *= 1.0 - u_look.z * 0.55 * smoothstep(0.35, 0.8, length(v));
     float a = u_feather > 0.0 ? smoothstep(0.0, u_feather, min(p.x, u_size.x - p.x)) : 1.0;
