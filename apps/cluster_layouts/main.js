@@ -149,9 +149,20 @@ mgu.run({
             log.info('signals for ranges, fuel and charge: ' + found.list.length);
             found.list.slice(0, 60).forEach((s) => log.info('  ' + s.iface + ' ' + s.field + (s.get ? ' get' : '') + (s.notify ? ' notify' : '') + ' {' + s.members.slice(0, 12).join(', ') + '}'));
         }
-        let page = 0;   // 0: status; 1...: the signal list, SIGNALS_PER_PAGE a page
-        // 0: status; 1: the raw drive-mode and range values; 2: what the cluster has up; 3...: the signal list
-        const pages = () => 3 + Math.ceil(found.list.length / SIGNALS_PER_PAGE);
+        /* the car's own signals that may carry an M car's drive set-up (M Setup, engine, chassis, steering, xDrive,
+         * DSC, M1 / M2): on an M car FES's driving experience stays COMFORT whatever is chosen (Measured (car), the
+         * X4M); listed so the right ones can be declared, never guessed */
+        const MODE_MATCH = /mdrive|msetup|m_?setup|mmode|m_?modus|fahrerlebnis|drivingexperience|drivelogic|dsc|stabilit|traction|xdrive|allrad|awd|4wd|enginemode|motormodus|antriebs|powertrain.*mode|chassis|fahrwerk|daempf|damp|steeringmode|lenkung|sportmode|sportplus/i;
+        const modeFound = findSignals({ match: MODE_MATCH });
+        if (!modeFound.error) {
+            log.info('signals for the drive set-up: ' + modeFound.list.length);
+            modeFound.list.slice(0, 80).forEach((s) => log.info('  ' + s.iface + ' ' + s.field + (s.get ? ' get' : '') + (s.notify ? ' notify' : '') + ' {' + s.members.slice(0, 12).join(', ') + '}'));
+        }
+        let page = 0;
+        // 0: status; 1: the raw drive-mode and range values; 2: what the cluster has up; then the drive set-up
+        // signals, then the range signals, SIGNALS_PER_PAGE a page
+        const modePages = () => Math.max(1, Math.ceil(modeFound.list.length / SIGNALS_PER_PAGE));
+        const pages = () => 3 + modePages() + Math.ceil(found.list.length / SIGNALS_PER_PAGE);
 
         ui.onClick('BTN_SHOW', () => { settings.set('show', showing() ? 'off' : 'on'); return render(); });
         ui.onClick('BTN_SIGNALS', () => { logView = null; page = (page + 1) % Math.max(1, pages()); return render(); });
@@ -184,6 +195,7 @@ mgu.run({
                 // the car's own names for these (its service catalog): what to declare for the electric range
                 // and the local time
                 ['range and charge signals', sigList(found, n(40, 400))],
+                ['drive set-up signals (M Setup, DSC, xDrive, engine, chassis)', sigList(modeFound, n(60, 400))],
                 ['time and date signals', sigList(findSignals({ match: /time|date|uhrzeit|datum|zone|clock/i }), n(25, 300))],
                 ['cluster-render log', logs.tail(logs.RENDER_LOG, n(50, 1500))],
                 ['this app\'s log', logs.tail(path.join(ctx.dataDir || '.', 'cluster_layouts.log'), n(30, 400))],
@@ -242,9 +254,20 @@ mgu.run({
                 lines.slice(0, 15).forEach((l, i) => cv.text(l.slice(0, 140), 48, 116 + i * 26, 16, t.text, { font: 'label', literal: true }));
                 return ui.image('MAIN_GFX', cv);
             }
+            if (page > 2 && page < 3 + modePages()) {
+                const k = page - 3;
+                cv.text('Signals on this car for the drive set-up (' + (modeFound.error ? modeFound.error : modeFound.list.length) + ')   ·   page ' + (k + 1) + ' of ' + modePages() + '   (photograph each page)', 48, 70, 24, t.text, { font: 'bold', literal: true });
+                modeFound.list.slice(k * SIGNALS_PER_PAGE, (k + 1) * SIGNALS_PER_PAGE).forEach((s, i) => {
+                    const y = 130 + i * 54;
+                    cv.text(s.iface.replace(/^de\.bmw\./, '') + '  ·  ' + s.field + (s.get ? '  get' : '') + (s.notify ? '  notify' : ''), 48, y, 20, t.text, { font: 'label', literal: true });
+                    cv.text(s.members.slice(0, 10).join(', ').slice(0, 150), 72, y + 24, 16, t.dim, { font: 'label', literal: true });
+                });
+                return ui.image('MAIN_GFX', cv);
+            }
             if (page > 2) {
-                cv.text('Signals on this car for ranges, fuel and charge (' + found.list.length + ')   ·   page ' + (page - 2) + ' of ' + (pages() - 3), 48, 70, 26, t.text, { font: 'bold', literal: true });
-                found.list.slice((page - 3) * SIGNALS_PER_PAGE, (page - 2) * SIGNALS_PER_PAGE).forEach((s, i) => {
+                const k = page - 3 - modePages();
+                cv.text('Signals on this car for ranges, fuel and charge (' + found.list.length + ')   ·   page ' + (k + 1) + ' of ' + (pages() - 3 - modePages()), 48, 70, 26, t.text, { font: 'bold', literal: true });
+                found.list.slice(k * SIGNALS_PER_PAGE, (k + 1) * SIGNALS_PER_PAGE).forEach((s, i) => {
                     const y = 130 + i * 54;
                     cv.text(s.iface.replace(/^de\.bmw\./, '') + '  ·  ' + s.field + (s.get ? '  get' : '') + (s.notify ? '  notify' : ''), 48, y, 20, t.text, { font: 'label', literal: true });
                     cv.text(s.members.slice(0, 10).join(', ').slice(0, 150), 72, y + 24, 16, t.dim, { font: 'label', literal: true });
