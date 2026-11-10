@@ -10,8 +10,8 @@
  * car does send (boost, torque, oil temperature, gearbox temperature, fuel rail pressure) under its own name.
  *
  * Compositions, from the panel's usable areas (layout_common):
- *   the car's strip (default): 580 px dials either side of the camera's cowl, ending above the strip, the tiles in
- *     the outer columns below the slanted corners (the fuel shown in the rev counter's box, so no strip gauge);
+ *   the car's strip (default): 524 px dials almost touching under the camera's cowl, ending above the strip, the
+ *     tiles beside them, black outside (the fuel shown in the rev counter's box, so no strip gauge);
  *   the full panel: 500 px dials, both left of the KOMBI's gear box and clear of an M car's first box (the
  *     speedometer left with an M car, the rev counter's face may pass under its second), the right tiles under
  *     its eDrive box;
@@ -78,7 +78,7 @@ function tile(o, id, side, x, y, w, h) {
     return [
         { key: k, kind: 'panel', x, y, w, h, params: { u_box: [8, 1.5, 0.1, 1] }, colors: (t) => ({ top: t.tile0, bottom: t.tile1, border: t.tileEdge }) },
         levelBar(k + 'Bar', L ? x + pad : x + w - pad - barW, y + 10, barW, h - 20, r.frac),
-        C.text(id, L ? vx : vx + unitW + 6, y + Math.round(h * 0.08), vw - unitW - 6, Math.round(h * 0.56), r.value, yellow, { align: L ? 0 : 1 }),
+        C.text(id, L ? vx : vx + unitW + 6, y + Math.round(h * 0.08), vw - unitW - 6, Math.min(62, Math.round(h * 0.56)), r.value, yellow, { align: L ? 0 : 1 }),
         C.text(id + 'Unit', L ? vx + vw - unitW : vx, y + Math.round(h * 0.38), unitW, Math.round(h * 0.2), r.unit, small, { align: L ? 1 : 0 }),
         C.text(id + 'Lbl', vx, y + Math.round(h * 0.7), vw, Math.round(h * 0.19), r.name, white, { align: L ? 0 : 1, tracking: 0.04 }),
     ];
@@ -105,7 +105,7 @@ function dial(o, which, cx, cy, size, box) {
             u_needle_dim: [R * 0.86, 0, 15 * k, 4 * k],
             u_look: [0, 0.55, 0, 0],
             u_look2: [bw, k, 0.5, 0.25],
-            u_look3: [Math.round(R * 0.4), 1, 1, Math.max(2, 3 * k)],
+            u_look3: [Math.round(R * 0.5), 1, 1, Math.max(2, 3 * k)],
         },
         colors: dialColours, max: s.max, sweep: true,
         value: rpm ? (d) => (num(d.rpm) ? d.rpm / 1000 : 0) : (d) => (num(d.speed) ? C.speedIn(o, d.speed) : 0),
@@ -176,13 +176,16 @@ module.exports = {
         }
         const all = [bg(0, 0, 1920, 720)];
         if (strip) {
-            // the car's strip (default): the dials either side of the camera's cowl (x 730-1190 to y 128), their
-            // bottoms above the strip; the tiles in the outer columns below the slanted top corners
-            const S = 580, cy = C.STRIP_Y - 6 - S / 2;
-            return all.concat(dial(o, 'rpm', 545, cy, S, true), dial(o, 'speed', 1375, cy, S, true),
-                column(o, LEFT, 'L', 8, 230, C.belowCorners(8, 238, 4), C.STRIP_Y - 4),
+            // the car's strip (default): the dials almost touching under the camera's cowl (x 730-1190 to y 128: their
+            // rims just clear of its corners), their bottoms above the strip; the tiles beside them, below the slanted
+            // top corners; plain black outside (a black flat under the carbon)
+            const S = 524, r = S / 2, cy = C.STRIP_Y - 6 - r, L = 670, R = 1920 - L, tw = 230, lx = L - r - 8 - tw, rx = R + r + 8;
+            const top = C.belowCorners(lx, lx + tw, 4);
+            return [{ key: 'bgBlack', kind: 'flat', x: 0, y: 0, w: 1920, h: 720, z: -210, colors: () => ({ color: ['#000000', 1] }) },
+                bg(lx - 8, 0, rx + tw + 16 - lx, 720)].concat(dial(o, 'rpm', L, cy, S, true), dial(o, 'speed', R, cy, S, true),
+                column(o, LEFT, 'L', lx, tw, top, C.STRIP_Y - 4),
                 // (a plug-in hybrid: the shared charge gauge under them, above the strip's electric range)
-                column(o, RIGHT, 'R', 1682, 230, C.belowCorners(1682, 1912, 4), o.vehicle === 'ice' ? C.STRIP_Y - 4 : 590));
+                column(o, RIGHT, 'R', rx, tw, top, o.vehicle === 'ice' ? C.STRIP_Y - 4 : 590));
         }
         // the full panel: both dials left of the KOMBI's gear box (x 1410), the left one clear of an M car's first box
         // (x 778; with an M car the speedometer goes left, so only the rev counter's face passes under its second
