@@ -61,11 +61,15 @@ const overMap = (r) => r.x < MAP.x + MAP.w && r.x + r.w > MAP.x && r.y < MAP.y +
 
 /*
  * What the cluster's glass shows of the panel (from photos of a G05; the same on every car with this cluster):
- * the top corners are cut on a slant, the camera's cowl covers the top middle, the stock warning lights and
+ * the top corners are cut on a slant, the top edge hides a thin band (on a G05 a camera cowl covered the top middle), the stock warning lights and
  * the gear's letter sit along the bottom, and while a layout is up the KOMBI leaves a dark box where the stock
  * gear readout was (right of centre). Layouts keep their readings out of these.
  */
-const NOTCH = { x: 730, y: 0, w: 460, h: 128 };
+/* the top middle: on the G05 the camera's cowl hid x 730-1190 to y 128; on the X4M (F98) there is no cowl, only the
+ * glass's curved top edge, which hides y 0-3 at the centre and about y 0-17 at x 480 and 1440 (Measured (car): a
+ * photo of the Cowl test card, layout_cowl_test.js); kept clear: y 0-20 from x 300 to 1620 (the slanted corners,
+ * inCorner, beyond that) */
+const NOTCH = { x: 300, y: 0, w: 1320, h: 20 };
 /* the KOMBI's own bracket where its gear readout was (measured from a photo of the car: a thick grey bar on
  * top with a slanted left end, a thick bar on the right, a thin line at the bottom, black inside, at about
  * x 1490-1652, y 271-442), with a margin; drawn over us, so kept clear and dressed by boxBezel() */

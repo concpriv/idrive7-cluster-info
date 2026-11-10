@@ -34,7 +34,7 @@ module.exports = {
         for (let i = 0; i < ROWS; i++) {
             out.push(C.flat('bgRow' + i, X0, i * ROW, X1 - X0, ROW, i % 2 ? 'b' : 'a'));
             // every other row's y, left of the stripes (outside the cowl and the slanted corners)
-            if (i % 2 === 0) out.push(C.text('rowY' + i, X0 - 70, i * ROW + 1, 62, ROW - 2, String(i * ROW), white, { align: 1 }));
+            if (i % 2 === 0 && i > 0) out.push(C.text('rowY' + i, X0 - 70, i * ROW + 1, 62, ROW - 2, String(i * ROW), white, { align: 1 }));
         }
         // the x of every 80 px, under the stripes, each with a short mark above it
         for (let x = X0; x <= X1; x += 80) {

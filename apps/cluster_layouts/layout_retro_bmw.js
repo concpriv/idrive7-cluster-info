@@ -10,8 +10,8 @@
  * economy gauge and a wideband air-fuel ratio, this one shows the time, the outside temperature, the engine torque
  * and the boost (with its bar).
  *
- * Built for the car's own bottom strip with the readings centre (the housing ends at the strip, its top under the
- * camera's cowl and inside the slanted corners); the map, the stock middle and the full panel get the two big dials
+ * Built for the car's own bottom strip with the readings centre (the housing ends at the strip, the dials' tops just
+ * below the glass's top edge); the map, the stock middle and the full panel get the two big dials
  * only, placed as the other dial layouts place them.
  */
 const C = require('./layout_common');
@@ -164,9 +164,10 @@ module.exports = {
                 readout(o, 774, 540, 132, 40, 774, 440, 132, 90));
         }
 
-        // the car's own strip: the old cluster's proportions (1.06x a 1290 px drawing of it), centred on the panel;
-        // the big dials' tops just clear of the camera's cowl (x 730-1190 to y 128), the window bar ending at the strip
-        const f = 1.06, cy = 325, X = (rx) => Math.round(960 + (rx - 645) * f), Y = (ry) => Math.round(cy + (ry - 183) * f);
+        // the car's own strip: the old cluster's proportions (scaled from a 1290 px drawing of it), centred on the panel,
+        // as large as the glass shows (layout_common.NOTCH: the X4M's top edge), the window bar ending at the strip
+        // (1.27x: the dials' tops at y 21, just below the glass's top edge, the window bar ending at the strip)
+        const f = 1.27, cy = Math.round(C.STRIP_Y - 4 - (482 - 183) * f), X = (rx) => Math.round(960 + (rx - 645) * f), Y = (ry) => Math.round(cy + (ry - 183) * f);
         const size = Math.round(380 * f), L = X(440), R_ = X(850);
         const aux = Math.round(190 * f), fuelX = X(110), coolX = X(1180), auxY = Y(320), ar = aux / 2, aR = ar - 2 - Math.max(4, Math.round(10 * aux / 640));
         const coolS = { max: 100, major: 25, minor: 12.5, red: 90, len: 0.8 };
