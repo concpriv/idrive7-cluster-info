@@ -3,8 +3,7 @@
  * layout_race_dash.js - "Race dash": an aftermarket motorsport dash look. Two big yellow dials on carbon fibre, the
  * rev counter left and the speedometer right, each with a black centre disc, black numerals, a long red needle and
  * the red zone as a red sector; a two-row box at each dial's lower right (rpm and fuel, speed and gear); four
- * reading tiles down each side, each with its level bar, value, unit and name. The maker's name (as text in the
- * dash's own font, not a logo) in the rev counter's disc.
+ * reading tiles down each side, each with its level bar, value, unit and name. No logo or maker's name.
  *
  * Every reading is a real one from the car (data.js). Where such dashes show what this car does not send (manifold
  * absolute pressure, throttle, injector duty, battery voltage, oil pressure), the tile shows the nearest reading the
@@ -111,7 +110,6 @@ function dial(o, which, cx, cy, size, box) {
         colors: dialColours, max: s.max, sweep: true,
         value: rpm ? (d) => (num(d.rpm) ? d.rpm / 1000 : 0) : (d) => (num(d.speed) ? C.speedIn(o, d.speed) : 0),
     }];
-    if (rpm && box) out.push(C.text('dialName', cx - R * 0.42, cy - R * 0.3, R * 0.84, Math.round(R * 0.15), 'HALTECH', (t) => ({ color: [t.value, 1], glow: [t.glow, 0] }), { tracking: 0.08 }));
     if (!box) return out;
     // the box: two rows, each a value, its name under it and its unit at the top right
     const bx = Math.round(cx + 0.1 * r), bwid = Math.round(0.7 * r), rh = Math.round(0.3 * r), y1 = Math.round(cy + 0.2 * r), y2 = y1 + rh + Math.round(0.03 * r);
