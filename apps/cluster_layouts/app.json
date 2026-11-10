@@ -237,6 +237,10 @@
         [
           "pulse",
           "Pulse"
+        ],
+        [
+          "kyalami_analog",
+          "Kyalami analog"
         ]
       ]
     },

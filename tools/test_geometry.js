@@ -14,7 +14,7 @@ const { byId } = require(path.join(__dirname, '..', 'apps', 'cluster_layouts', '
 let failures = 0;
 const ok = (name, cond, more) => { console.log((cond ? 'ok   ' : 'FAIL ') + name + (cond || !more ? '' : '  (' + more + ')')); if (!cond) failures++; };
 
-const DIALS = ['analog_sport', 'digital_round', 'retro'];
+const DIALS = ['analog_sport', 'digital_round', 'retro', 'kyalami_analog'];
 const CENTRES = { info: null, map: C.MAP, stock: C.STOCK_MIDDLE };
 DIALS.forEach((id) => Object.keys(CENTRES).forEach((centre) => ['ice', 'phev'].forEach((vehicle) => {
     const o = { centre, vehicle, cluster: 'standard', bottomStrip: 'stock', speedUnit: 'kmh', tempUnit: 'c', redline: 7000, rpmMax: 8000 };
