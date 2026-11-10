@@ -15,6 +15,9 @@ descenders of g j p q y, which 0.86 cut off), as a signed distance field
 glyph is the font's own, in glyph heights (the cell's height).
 
     python3 tools/bake_font.py <folder with the BarlowSemiCondensed-*.ttf files>
+One more family on its own, kept beside the others (a layout names it: font: 'din'):
+  din    Barlow Condensed Bold (SIL OFL 1.1, the same project): narrower and heavier, the classic gauges' DIN look
+    python3 tools/bake_font.py --family din <barlow-condensed-latin-700-normal.woff or BarlowCondensed-Bold.ttf>
 """
 import json
 import os
@@ -66,7 +69,22 @@ def bake(src, fam, ttf):
     return {'font': ttf, 'chars': CHARS, 'cellW': CELL_W, 'cellH': CELL_H, 'cols': COLS, 'rows': rows, 'spread': SPREAD, 'adv': adv}
 
 
+def bake_one(fam, path):
+    """One family from one font file, merged into font_baked.js beside the families already baked."""
+    meta = bake(os.path.dirname(os.path.abspath(path)), fam, os.path.basename(path))
+    baked = os.path.join(SHARED, 'font_baked.js')
+    with open(baked) as f:
+        text = f.read()
+    all_meta = json.loads(text[text.index('= ') + 2:text.rindex(';')])
+    all_meta[fam] = meta
+    with open(baked, 'w') as f:
+        f.write(text[:text.index('= ') + 2] + json.dumps(all_meta, ensure_ascii=False) + ';\n')
+
+
 if __name__ == '__main__':
+    if sys.argv[1] == '--family':
+        bake_one(sys.argv[2], sys.argv[3])
+        sys.exit(0)
     src = sys.argv[1]
     meta = {fam: bake(src, fam, ttf) for fam, ttf in FAMILIES.items()}
     with open(os.path.join(SHARED, 'font_baked.js'), 'w') as f:

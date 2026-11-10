@@ -83,7 +83,7 @@ function sweep(L, extra) {
             const id = [L.id, p.key, p.w, p.h, p.tracking || 0, s].join('|');
             if (seen.has(id)) return;
             seen.add(id);
-            out.push({ layout: L.id, key: p.key, opts: o, data: dk, text: s, w: p.w, h: p.h, fit: fit(s, p.w, p.h, p.tracking) });
+            out.push({ layout: L.id, key: p.key, opts: o, data: dk, text: s, w: p.w, h: p.h, fit: fit(s, p.w, p.h, p.tracking, L.font) });
         }));
     }));
     return out;
@@ -96,7 +96,7 @@ module.exports = { fit, sweep, DATA, UNITS, GEOMETRY, MIN_SQUEEZE };
  * by its align in its box; the box's height).
  */
 function inkRect(p, s) {
-    const f = fit(s, p.w, p.h, p.tracking);
+    const f = fit(s, p.w, p.h, p.tracking, p.fam);
     const gaps = Math.max(0, Array.from(String(s)).length - 1), box = p.w / p.h;
     let tr = p.tracking || 0;
     if (f.need + tr * gaps > box) tr = Math.max(0, (box - f.need) / Math.max(1, gaps));
@@ -118,7 +118,7 @@ function overlaps(L, extra) {
             const inks = pieces.map((p) => {
                 let s;
                 try { s = typeof p.text === 'function' ? String(p.text(DATA[dk], t, p)) : String(p.text); } catch (e) { s = ''; }
-                return s.trim() ? { p, s, r: inkRect(p, s) } : null;
+                return s.trim() ? { p, s, r: inkRect(Object.assign({}, p, { fam: L.font }), s) } : null;
             }).filter(Boolean);
             for (let i = 0; i < inks.length; i++) for (let j = i + 1; j < inks.length; j++) {
                 const a = inks[i].r, b = inks[j].r;

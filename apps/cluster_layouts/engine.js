@@ -60,7 +60,7 @@ const LIVE_GRACE_MS = 1500;                 // a trend line's samples
  *   opts.theme()  the colours now (the layout's palette for the look now)
  *   opts.data()   the car's data now ({ speed km/h, rpm, gear, stage, mode, oil, coolant, demo, ... })
  *   opts.live(), opts.enabled(), opts.sweep() (optional: the start-up sweep wanted), opts.log
- *   opts.font() the glyph family ('bold' default, 'light'; font.js), opts.target ('panel' default, 'map', 'hud'), opts.contend (take the slot over from the stock HMI), opts.z
+ *   opts.font() the glyph family ('bold' default, 'light', 'din'; font.js; else the layout's font), opts.target ('panel' default, 'map', 'hud'), opts.contend (take the slot over from the stock HMI), opts.z
  *   (added to every layer's z: above another client's layers on the same target)
  */
 function startCluster(opts) {
@@ -105,7 +105,8 @@ function startCluster(opts) {
      * might carry is dropped so nothing lands on the cluster. */
     const withCredit = (list) => (list || []).filter((x) => x.key !== '_credit');
 
-    const fam = () => (opts.font ? opts.font() : 'bold');
+    // the glyph family: the one asked for, else the layout's own (font: 'din'), else bold
+    const fam = () => (opts.font ? opts.font() : (opts.layout && opts.layout() && opts.layout().font) || 'bold');
     const fontCells = () => { const a = font.atlas(fam()); return [a.cols, a.aspect, a.rows]; };
     const colourValue = (c) => (Array.isArray(c) ? rgb(c[0]).concat([c[1]]) : rgb(c));
 

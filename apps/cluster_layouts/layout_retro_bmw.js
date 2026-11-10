@@ -86,9 +86,9 @@ const oilScale = (o) => (o.tempUnit === 'c' ? { max: 150, major: 50, minor: 10, 
 function bigDials(o, L, R_, cy, size, full) {
     const sp = C.speedScale(o), rp = C.rpmScale(o), r = size / 2, k = size / 640, R = r - 2 - Math.max(4, Math.round(10 * k));
     const out = [
-        dial('speed', L, cy, size, { max: sp.max, major: sp.major, minor: sp.minor, numR: 0.71 }, [-128, 128], R * 0.125,
+        dial('speed', L, cy, size, { max: sp.max, major: sp.major, minor: sp.minor, numR: 0.71 }, [-128, 128], R * 0.15,
             (d) => (num(d.speed) ? C.speedIn(o, d.speed) : 0)),
-        dial('rpm', R_, cy, size, { max: rp.max, major: rp.major, minor: rp.minor / 2, red: rp.red, numR: 0.7 }, [-130, 130], R * 0.155,
+        dial('rpm', R_, cy, size, { max: rp.max, major: rp.major, minor: rp.minor / 2, red: rp.red, numR: 0.7 }, [-130, 130], R * 0.2,
             (d) => (num(d.rpm) ? d.rpm / 1000 : 0)),
     ];
     if (!full) return out;
@@ -113,6 +113,8 @@ function bigDials(o, L, R_, cy, size, full) {
 module.exports = {
     id: 'retro_bmw',
     title: 'Retro BMW',
+    // the narrower, heavier DIN-style face of the old gauges (Barlow Condensed Bold: font.js 'din')
+    font: 'din',
     palette: pal,
     gearText: C.gearText,
     needs: ['boostActual', 'iat', 'timing', 'gearbox'],
