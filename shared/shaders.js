@@ -101,7 +101,9 @@ void main() {
  *   u_value   the reading on the scale
  *   u_look3   (optional, all 0: none) an inner disc's radius px (u_disc, under the needle, a u_ring line inside
  *             its edge), the red zone as a sector across the whole face band (1), the numerals there in u_num2
- *             (1), the ring line's width px
+ *             (1), the ring line's width px; red zone 2: its major ticks red, no band
+ *   u_clip    (optional, radius 0: none) drawn only inside a circle (centre px from this layer's centre, radius)
+ *             and below a line (y px from this layer's centre), with a light line along it: a sub-dial
  */
 const DIAL_FS = `#version 100
 ${HIGHP}${COMMON}${GLYPH}
@@ -112,6 +114,7 @@ uniform vec4 u_needle_dim;
 uniform vec4 u_look;
 uniform vec4 u_look2;
 uniform vec4 u_look3;
+uniform vec4 u_clip;
 uniform float u_value;
 uniform float u_digit_adv;
 uniform vec3 u_disc;
@@ -157,8 +160,9 @@ void main() {
     float disc = clamp(Ro - r + 0.5, 0.0, 1.0);
     if (disc <= 0.0) { gl_FragColor = vec4(0.0); return; }
     float ang = atan(d.x, -d.y) / DEG;
-    /* a scale that starts past the bottom (start < -180): its angles below the start, unwrapped */
-    if (u_arc.x < -180.0 && ang > u_arc.y) ang -= 360.0;
+    /* a scale that runs past the bottom (an end < -180): its angles unwrapped, the gap between its ends split evenly */
+    float lo = min(u_arc.x, u_arc.y), hi = max(u_arc.x, u_arc.y);
+    if (lo < -180.0 && ang > hi + (360.0 - (hi - lo)) * 0.5) ang -= 360.0;
     float a0 = min(u_arc.x, u_arc.y), a1 = max(u_arc.x, u_arc.y);
 
     /* the face: lighter in the middle, deeper towards the rim, fine machined rings */
@@ -183,7 +187,7 @@ void main() {
         float vM = clamp(floor(v / u_scale.y + 0.5) * u_scale.y, 0.0, u_scale.x);
         /* the red zone */
         bool sector = u_look3.y > 0.5 && u_look3.x > 0.0;
-        if (u_scale.w < u_scale.x) {
+        if (u_scale.w < u_scale.x && u_look3.y < 1.5) {
             float zone = clamp((v - u_scale.w) / u_scale.x * (a1 - a0) * DEG * r + 0.5, 0.0, 1.0);
             col = mix(col, u_red, zone * (sector ? span(r, u_look3.x, R) : span(r, R - 34.0 * k, R - 14.0 * k)));
         }
@@ -191,7 +195,9 @@ void main() {
         float gl = max(tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 7.0 * k), tick(vm, ang, r, R - 30.0 * k, R - 14.0 * k, 1.5 * k, 5.0 * k) * 0.6);
         col += u_glow * gl * u_look.x * 0.35;
         col = mix(col, u_minor, tick(vm, ang, r, R - 30.0 * k, R - 14.0 * k, 1.4 * k, 0.0));
-        col = mix(col, vM >= u_scale.w - 0.001 && u_scale.w < u_scale.x && !sector ? u_red : u_tick, tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 0.0));
+        bool redTick = vM >= u_scale.w - 0.001 && u_scale.w < u_scale.x && !sector;
+        col = mix(col, redTick ? u_red : u_tick, tick(vm, ang, r, R - 30.0 * k, R - 14.0 * k, 1.4 * k, 0.0) * (redTick && u_look3.y > 1.5 ? 1.0 : 0.0));
+        col = mix(col, redTick ? u_red : u_tick, tick(vM, ang, r, R - 46.0 * k, R - 14.0 * k, 3.0 * k, 0.0));
     }
     /* the numerals, upright, at the nearest major tick, with their backlight */
     if (u_arc.z > 0.0) {
@@ -250,6 +256,10 @@ void main() {
     }
     /* glass: a faint reflection across the upper left of the face */
     col += vec3(1.0) * u_look2.w * 0.05 * smoothstep(0.1, 0.7, dot(d / R, vec2(-0.55, -0.83))) * clamp(R - r, 0.0, 1.0);
+    if (u_clip.z > 0.0) {
+        disc *= clamp(u_clip.z - length(d - u_clip.xy) + 0.5, 0.0, 1.0) * clamp(d.y - u_clip.w + 0.5, 0.0, 1.0);
+        col = mix(col, u_minor, span(d.y, u_clip.w, u_clip.w + 2.0));
+    }
     gl_FragColor = vec4(col, disc);
 }`;
 
@@ -439,6 +449,8 @@ uniform vec2 u_weave;              /* (optional) a carbon-fibre twill: strength 
 uniform vec2 u_forged;             /* (optional) forged carbon: strength 0..1, flake size px */
 uniform vec4 u_screen;             /* (optional, all 0: none) black outside this rounded rectangle: x0, y0, x1, y1 px */
 uniform float u_screen_r;          /* its corner radius px */
+uniform vec4 u_shoulder;           /* (optional, slope 0: none) black above the housing's top: flat from x0 to x1 at y,
+                                    * falling away outside that at this slope (px down per px out) */
 uniform vec3 u_top;
 uniform vec3 u_bottom;
 uniform vec3 u_accent;
@@ -494,6 +506,10 @@ void main() {
         vec2 q = abs(p - c) - (hs - u_screen_r);
         float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - u_screen_r;
         col *= clamp(0.5 - sd, 0.0, 1.0);
+    }
+    if (u_shoulder.w > 0.0) {
+        float top = u_shoulder.z + u_shoulder.w * max(0.0, max(u_shoulder.x - p.x, p.x - u_shoulder.y));
+        col *= clamp(p.y - top + 0.5, 0.0, 1.0);
     }
     gl_FragColor = vec4(col, a);
 }`;
