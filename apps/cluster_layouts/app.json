@@ -241,6 +241,10 @@
         [
           "kyalami_analog",
           "Kyalami analog"
+        ],
+        [
+          "kyalami_digital",
+          "Kyalami digital"
         ]
       ]
     },
